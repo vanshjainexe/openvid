@@ -1,0 +1,21 @@
+# OpenVid
+> Free AI-powered online video editor. Screen recorder, cinematic zooms, professional mockups, and HD export directly in your browser.
+
+## Overview
+Openvid allows you to record your screen or upload a video, add smooth zooms, device mockups, 3D effects, and custom backgrounds to export a cinematic demo ready to share. Everything runs entirely in the browser using FFmpeg.wasm and Canvas API.
+
+## Core Features
+- Browser-based screen recording and drag-and-drop video upload (MP4, WebM).
+- Device Mockups: Add context with Safari, Chrome, Arc, and Samsung frames.
+- 3D Camera & Zoom: Dynamic zooms, tilt, and perspective control.
+- Effects & Layers: Custom backgrounds, masking, shadows, text, and SVG overlays.
+- High-Quality Export: Render up to 4K @ 30fps in MP4, WebM (with transparency), or GIF.
+
+## Tech Stack
+- Next.js 16, TypeScript, Tailwind CSS 4, Radix UI.
+- Video Processing: FFmpeg.wasm, MediaBunny, Three.js.
+- Auth: Supabase Auth (Google, GitHub, Twitch).
+
+## Useful Links
+- Official Website: https://openvid.dev
+- Discord Community: https://discord.gg/kM5FtydGQ
