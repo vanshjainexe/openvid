@@ -24,7 +24,8 @@
     "docs": "Documentation",
     "editor": "Go to editor",
     "donate": "Donate",
-    "github": "GitHub"
+    "github": "GitHub",
+    "email": "Email"
   },
   "privacy": {
     "backToHome": "Back to home",

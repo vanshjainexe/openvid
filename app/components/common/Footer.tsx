@@ -39,7 +39,7 @@ export default function Footer() {
           <nav aria-label={t('contact')}>
             <h4 className="text-white font-medium text-sm mb-4">{t('contact')}</h4>
             <ul className="space-y-3 text-sm text-neutral-500">
-              <li><a href="https://github.com/CristianOlivera1/openvid" target="_blank" className="hover:text-white transition-colors">{t('github')}</a></li>
+              <li><a href="https://mail.google.com/mail/?view=cm&fs=1&to=oliverachavezcristian@gmail.com" target="_blank" className="hover:text-white transition-colors">{t('email')}</a></li>
             </ul>
           </nav>
           <nav aria-label={t('legal')}>
@@ -53,11 +53,12 @@ export default function Footer() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
-        <span className="text-xs text-neutral-600">© {currentYear} openvid {t('rights')}</span>
-        <div className="flex gap-4 text-neutral-600" aria-label="Social links">
-          <a href="#" className="hover:text-white transition-colors" aria-label="Twitter"><Icon icon="solar:brand-twitter-linear" width="18" aria-hidden="true" /></a>
-          <a href="#" className="hover:text-white transition-colors" aria-label="GitHub"><Icon icon="solar:brand-github-linear" width="18" aria-hidden="true" /></a>
-          <a href="#" className="hover:text-white transition-colors" aria-label="Discord"><Icon icon="solar:brand-discord-linear" width="18" aria-hidden="true" /></a>
+        <span className="text-xs text-neutral-600">© {currentYear} openvid  {t('rights')}</span>
+        <div className="flex gap-4 text-white" aria-label="Social links">
+          <a href="https://x.com/openvid" className="hover:text-white transition-colors" aria-label="X" target="_blank" rel="noopener noreferrer"><Icon icon="mingcute:social-x-line" width="18" aria-hidden="true" /></a>
+          <a href="https://www.tiktok.com/@openvid" className="hover:text-white transition-colors" aria-label="TikTok" target="_blank" rel="noopener noreferrer"><Icon icon="ic:baseline-tiktok" width="18" aria-hidden="true" /></a>
+          <a href="https://www.instagram.com/openvidink" className="hover:text-white transition-colors" aria-label="Instagram" target="_blank" rel="noopener noreferrer"><Icon icon="mdi:instagram" width="18" aria-hidden="true" /></a>
+          <a href="https://www.youtube.com/@openvidink" className="hover:text-white transition-colors" aria-label="Youtube" target="_blank" rel="noopener noreferrer"><Icon icon="mdi:youtube" width="18" aria-hidden="true" /></a>
         </div>
       </div>
     </footer>
