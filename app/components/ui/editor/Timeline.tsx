@@ -64,7 +64,7 @@ export function Timeline({
     const [ghostX, setGhostX] = useState(0);
     const validDuration = useMemo(() => {
         if (videoClips.length > 0) {
-            // Duración total = fin del último clip
+            // Total duration = end of last clip
             const lastClipEnd = Math.max(...videoClips.map(c => c.startTime + (c.trimEnd - c.trimStart)));
             return Number.isFinite(lastClipEnd) && lastClipEnd > 0 ? lastClipEnd : 0;
         }

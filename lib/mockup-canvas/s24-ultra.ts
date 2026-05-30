@@ -61,8 +61,8 @@ export function drawS24UltraMockup(context: MockupCanvasContext): MockupDrawResu
         ctx.stroke();
     };
 
-    drawSideButton(0.20, 0.08); // Volumen
-    drawSideButton(0.32, 0.12); // Encendido
+    drawSideButton(0.20, 0.08); // Volume
+    drawSideButton(0.32, 0.12); // Power
     ctx.restore();
 
     ctx.save();
@@ -110,7 +110,7 @@ export function drawS24UltraMockup(context: MockupCanvasContext): MockupDrawResu
     ctx.font = `500 ${timeFontSize}px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     ctx.fillStyle = textAndIconColor;
     ctx.textBaseline = "middle";
-    ctx.fillText("12:30", screenX + statusBarPaddingX, statusYCenter + 1); // +1 corrección óptica
+    ctx.fillText("12:30", screenX + statusBarPaddingX, statusYCenter + 1); // +1 optical correction
     ctx.restore();
 
     let currentRightX = screenX + screenWidth - statusBarPaddingX;
@@ -152,7 +152,7 @@ export function drawS24UltraMockup(context: MockupCanvasContext): MockupDrawResu
 
     ctx.save();
     ctx.translate(currentRightX, statusYCenter - wifiSize / 2);
-    const wifiScale = wifiSize / 24; // El SVG original de Tailwind es 24x24
+    const wifiScale = wifiSize / 24; // Original Tailwind SVG is 24x24
     ctx.scale(wifiScale, wifiScale);
     const wifiPath = new Path2D("M12 21l-12-12c5.5-5.5 14.5-5.5 20 0l-8 12z");
     ctx.fillStyle = textAndIconColor;
@@ -176,14 +176,14 @@ export function drawS24UltraMockup(context: MockupCanvasContext): MockupDrawResu
     ctx.arc(navCenterX, navYCenter, navIconSize / 2, 0, Math.PI * 2);
     ctx.stroke();
 
-    const rightIconX = navCenterX + navGap + (4 * headerScale); // Offset visual
+    const rightIconX = navCenterX + navGap + (4 * headerScale); // Visual offset
     ctx.translate(rightIconX, navYCenter);
-    ctx.rotate(45 * Math.PI / 180); // Rota para formar la flecha
+    ctx.rotate(45 * Math.PI / 180); // Rotate to form the arrow
     ctx.beginPath();
     const halfIcon = navIconSize / 2;
-    ctx.moveTo(-halfIcon, -halfIcon); // Arriba
-    ctx.lineTo(-halfIcon, halfIcon);  // Esquina inferior izquierda
-    ctx.lineTo(halfIcon, halfIcon);   // Derecha
+    ctx.moveTo(-halfIcon, -halfIcon); // Top
+    ctx.lineTo(-halfIcon, halfIcon);  // Bottom-left corner
+    ctx.lineTo(halfIcon, halfIcon);   // Right
     ctx.stroke();
     ctx.restore();
 

@@ -1,60 +1,60 @@
 export type MockupCategory = "browser" | "mobile" | "ide" | "all";
 
-// Configuraciones disponibles para cada mockup
+// Available configurations for each mockup
 export interface MockupFeatures {
     hasDarkMode: boolean;
-    hasFrameColor: boolean;  // Color del encabezado/marco
+    hasFrameColor: boolean;  // Header/frame color
     hasUrl: boolean;
-    hasHeaderScale: boolean; // Escala proporcional del encabezado
-    hasHeaderOpacity: boolean; // Opacidad del encabezado/marco
+    hasHeaderScale: boolean; // Proportional header scale
+    hasHeaderOpacity: boolean; // Header/frame opacity
     hasCornerRadius: boolean;
 }
 
-// Configuración actual del mockup
+// Current mockup configuration
 export interface MockupConfig {
     darkMode: boolean;
-    frameColor: string;      // Color del encabezado/marco  
+    frameColor: string;      // Header/frame color
     url: string;
-    headerScale: number;     // Escala del encabezado (50-150, donde 100 es normal)
-    headerOpacity: number;   // Opacidad del encabezado (0-100)
+    headerScale: number;     // Header scale (50-150, where 100 is normal)
+    headerOpacity: number;   // Header opacity (0-100)
     cornerRadius: number;
 }
 
-// Definición de un mockup
+// Mockup definition
 export interface Mockup {
     id: string;
     name: string;
     category: Exclude<MockupCategory, "all">;
     preview: React.ReactNode;
-    features?: MockupFeatures; // Opcional - usa DEFAULT si no está definido
+    features?: MockupFeatures; // Optional - uses DEFAULT if not defined
     defaultConfig?: Partial<MockupConfig>;
 }
 
-// Estado del sistema de mockups
+// Mockup system state
 export interface MockupState {
     enabled: boolean;
     selectedMockupId: string;
     config: MockupConfig;
 }
 
-// Props para renderizar un mockup en el canvas
+// Props for rendering a mockup on the canvas
 export interface MockupRenderProps {
     children: React.ReactNode;
     config: MockupConfig;
     className?: string;
 }
 
-// Configuración por defecto
+// Default configuration
 export const DEFAULT_MOCKUP_CONFIG: MockupConfig = {
     darkMode: false,
     frameColor: "#f6f6f6",
     url: "https://openvid.dev",
-    headerScale: 60,        // 100% = tamaño normal
-    headerOpacity: 100,     // 100% = totalmente opaco
+    headerScale: 60,        // 100% = normal size
+    headerOpacity: 100,     // 100% = fully opaque
     cornerRadius: 12,
 };
 
-// Features por defecto (ninguna feature habilitada)
+// Default features (no features enabled)
 export const DEFAULT_MOCKUP_FEATURES: MockupFeatures = {
     hasDarkMode: false,
     hasFrameColor: false,
@@ -64,12 +64,12 @@ export const DEFAULT_MOCKUP_FEATURES: MockupFeatures = {
     hasHeaderOpacity: false,
 };
 
-// Helper para obtener las features de un mockup con fallback al default
+// Helper to get mockup features with fallback to default
 export function getMockupFeatures(mockup: Mockup | undefined): MockupFeatures {
     return mockup?.features ?? DEFAULT_MOCKUP_FEATURES;
 }
 
-// Helper para obtener la config inicial de un mockup
+// Helper to get the initial config for a mockup
 export function getMockupDefaultConfig(mockup: Mockup | undefined): MockupConfig {
     return {
         ...DEFAULT_MOCKUP_CONFIG,

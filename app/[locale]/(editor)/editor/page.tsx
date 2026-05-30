@@ -968,7 +968,7 @@ export default function Editor() {
         setMockupConfig(getMockupDefaultConfig(newMockup));
     }, []);
 
-    // Handler para cambiar la configuración del mockup
+    // Handler to update mockup configuration
     const handleMockupConfigChange = useCallback((updates: Partial<MockupConfig>) => {
         setMockupConfig(prev => ({ ...prev, ...updates }));
     }, []);
@@ -1455,7 +1455,7 @@ export default function Editor() {
         }
     }, [uploadVideo, clearHistory]);
 
-    // Handler para subir video solo a la librería (desde VideosMenu)
+    // Handler to upload video to the library only (from VideosMenu)
     const handleVideoUploadToLibrary = useCallback(async (file: File) => {
         try {
             await addVideoToLibrary(file);
@@ -1467,7 +1467,7 @@ export default function Editor() {
         }
     }, []);
 
-    // Handler para agregar video desde la librería al track (concatenar)
+    // Handler to add video from library to the track (concatenate)
     const handleAddVideoToTrack = useCallback(async (videoId: string, blob: Blob, duration: number) => {
         // Get video info from library
         const libraryVideo = await import("@/lib/videos-library").then(m => m.getLibraryVideo(videoId));
@@ -1483,7 +1483,7 @@ export default function Editor() {
             videoUrlsRef.current.set(videoId, blobUrl);
         }
 
-        // Usar functional update para tener siempre el estado más reciente
+        // Use functional update to always have the latest state
         setVideoClips(prevClips => {
             const startTime = findNextClipPosition(prevClips);
 
@@ -1601,7 +1601,7 @@ export default function Editor() {
         }
     }, [selectedVideoClipId]);
 
-    // Handler para eliminar video de track cuando se elimina de la librería (cascade delete)
+    // Handler to remove video from track when deleted from library (cascade delete)
     const handleDeleteVideoFromLibrary = useCallback((libraryVideoId: string) => {
         setVideoClips(prev => {
             const newClips = prev.filter(clip => clip.libraryVideoId !== libraryVideoId);
@@ -1647,7 +1647,7 @@ export default function Editor() {
         }
     }, []);
 
-    // Handler para quitar video del track (toggle) - solo remueve el clip, no la librería
+    // Handler to remove video from track (toggle) - removes clip only, not from library
     const handleRemoveVideoFromTrack = useCallback((libraryVideoId: string) => {
         setVideoClips(prev => {
             const newClips = prev.filter(clip => clip.libraryVideoId !== libraryVideoId);

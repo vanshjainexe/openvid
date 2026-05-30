@@ -66,7 +66,7 @@ export function AspectRatioSelect({
         return standard ? standard.label : t("labels.custom");
     })();
 
-    // Componente interno para dibujar las figuritas de los rectángulos/cuadrados
+    // Internal component to render rectangle/square ratio shapes
     const RatioShape = ({ ratio, isSelected }: { ratio: AspectRatio; isSelected: boolean }) => {
         if (ratio === "auto") {
             return <Icon icon="lucide:maximize" width="24" className={isSelected ? "text-primary" : "opacity-60"} />;

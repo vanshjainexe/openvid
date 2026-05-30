@@ -205,7 +205,7 @@ export interface ZoomState {
 const DEFAULT_ZOOM_LEVEL = 1.5;
 const DEFAULT_ZOOM_SPEED = 5;
 
-// Helper para crear un nuevo fragmento con valores por defecto
+// Helper to create a new fragment with default values
 export function createZoomFragment(
     startTime: number,
     endTime: number
@@ -222,7 +222,7 @@ export function createZoomFragment(
     };
 }
 
-// Helper para generar fragmentos por defecto cuando carga un video
+// Helper to generate default fragments when a video loads
 export function generateDefaultZoomFragments(
     videoDuration: number
 ): ZoomFragment[] {
@@ -248,7 +248,7 @@ export function generateDefaultZoomFragments(
     return fragments;
 }
 
-// Convertir zoomLevel (1-10) a factor de zoom real
+// Convert zoomLevel (1-10) to actual zoom factor
 export function zoomLevelToFactor(level: number): number {
     const minZoom = 1.2;
     const maxZoom = 4.0;
@@ -256,7 +256,7 @@ export function zoomLevelToFactor(level: number): number {
     return minZoom + (maxZoom - minZoom) * normalized;
 }
 
-// Convertir speed (1-10) a duración de transición en milisegundos
+// Convert speed (1-10) to transition duration in milliseconds
 export function speedToTransitionMs(speed: number): number {
     const minMs = 150;
     const maxMs = 2000;

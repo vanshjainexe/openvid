@@ -35,7 +35,7 @@ export function HardShellMockup({
     const networkFontSize = 10 * headerScale; // text-[10px]
     
     const signalBarWidth = 3 * headerScale; // w-[3px]
-    const batteryWidth = 22 * headerScale; // Ligeramente más ancha
+    const batteryWidth = 22 * headerScale; // Slightly wider
     const batteryHeight = 11 * headerScale; 
     
     const contentPaddingTop = 44 * headerScale; // pt-11
@@ -73,7 +73,7 @@ export function HardShellMockup({
                     className="absolute shadow-inner rounded-r-md"
                     style={{ 
                         right: `-${buttonWidth}px`,
-                        top: '18%', // Posición proporcional (top-32)
+                        top: '18%', // Proportional position (top-32)
                         width: `${buttonWidth}px`,
                         height: '9%', // Proporcional a h-16
                         backgroundColor: buttonBgColor,
@@ -88,7 +88,7 @@ export function HardShellMockup({
                     className="absolute shadow-inner rounded-r-md"
                     style={{ 
                         right: `-${buttonWidth}px`,
-                        top: '31%', // Posición proporcional (top-56)
+                        top: '31%', // Proportional position (top-56)
                         width: `${buttonWidth}px`,
                         height: '5%', // Proporcional a h-9
                         backgroundColor: buttonBgColor,

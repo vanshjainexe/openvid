@@ -47,7 +47,7 @@ export function HeroScrollMask() {
   useEffect(() => {
     const mm = gsap.matchMedia();
 
-    // Limitamos la ejecución de la animación solo a pantallas >= 640px (breakpoint 'sm')
+    // Limit animation to screens >= 640px (breakpoint 'sm')
     mm.add("(min-width: 640px)", () => {
       const timeline = gsap.timeline({ defaults: { ease: "none" } });
 

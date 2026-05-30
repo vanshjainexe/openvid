@@ -28,7 +28,7 @@ export function ChromeMockup({
     const bgColor       = isDark ? "#1e1e1e" : "#ffffff";
     const tabBarBg      = frameColor;          // tab bar = frameColor directo
     const addressBg     = frameColor;          // address bar = frameColor directo
-    const tabActiveBg   = deriveSearchBg(frameColor); // tab activa = ligeramente más clara/oscura
+    const tabActiveBg   = deriveSearchBg(frameColor); // active tab = slightly lighter/darker
     const urlBarBgBase  = deriveSearchBg(frameColor); // search bar = mismo derivado
     const addressBorder = isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)";
     const textColor     = isDark ? "#9ca3af" : "#374151";
@@ -94,7 +94,7 @@ export function ChromeMockup({
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
                     </svg>
                     <span className="truncate flex-1" style={{ fontSize: `${tabFontSz}px`, color: textColor }}>
-                        {url?.replace(/^https?:\/\//, "") ?? "Nueva pestaña"}
+                        {url?.replace(/^https?:\/\//, "") ?? "New tab"}
                     </span>
                     <svg style={{ width: `${tabIconSz}px`, height: `${tabIconSz}px`, flexShrink: 0, color: iconColor }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path d="M6 18L18 6M6 6l12 12" strokeWidth="2.5" strokeLinecap="round" />

@@ -76,7 +76,7 @@ export function getAspectRatioNumber(ratio: AspectRatio, customDimensions?: { wi
     }
 }
 
-// Función para obtener max-width basado en aspect ratio
+// Get max-width based on aspect ratio
 export function getMaxWidth(ratio: AspectRatio, customDimensions?: { width: number; height: number }): string {
     if ((ratio === "custom" || ratio === "auto") && customDimensions) {
         const aspectValue = customDimensions.width / customDimensions.height;
@@ -338,7 +338,7 @@ export function calculateSmoothZoom(
 }
 
 
-// Funciones para determinar esquina más cercana y estilos de las esquinas para rotar elementos
+// Functions to determine nearest corner and corner styles for rotating elements
 export type Corner = "top-left" | "top-right" | "bottom-right" | "bottom-left";
 
 export function getNearestCorner(e: React.MouseEvent<HTMLElement>, rotationDeg = 0): Corner {
@@ -376,8 +376,8 @@ export function getCornerStyle(corner: Corner, offset = -10): React.CSSPropertie
 }
 
 export const CORNER_ICON_ROTATION: Record<Corner, number> = {
-    "top-right": 0,    // posición natural del SVG
-    "bottom-right": 90,   // gira 90° a la derecha
-    "bottom-left": 180,  // gira 180°
-    "top-left": 270,  // gira 270°
+    "top-right": 0,    // natural SVG position
+    "bottom-right": 90,   // rotate 90° clockwise
+    "bottom-left": 180,  // rotate 180°
+    "top-left": 270,  // rotate 270°
 };

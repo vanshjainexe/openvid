@@ -66,7 +66,7 @@ export function drawMacosGlassMockup(context: MockupCanvasContext): MockupDrawRe
     gradient.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
     gradient.addColorStop(1, 'rgba(255, 255, 255, 0.45)');
     ctx.fillStyle = gradient;
-    ctx.fill('evenodd'); // Usar evenodd para crear el efecto "donut"
+    ctx.fill('evenodd'); // Use evenodd to create the "donut" cutout effect
     
     ctx.strokeStyle = 'rgba(255, 255, 255)';
     ctx.lineWidth = 0.5;

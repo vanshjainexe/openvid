@@ -76,8 +76,8 @@ export function drawHardShellMockup(context: MockupCanvasContext): MockupDrawRes
         ctx.stroke();
     };
 
-    drawButton(0.18, 0.09, false); // Volumen
-    drawButton(0.31, 0.05, false); // Encendido
+    drawButton(0.18, 0.09, false); // Volume
+    drawButton(0.31, 0.05, false); // Power
     ctx.restore();
 
     ctx.save();
@@ -139,13 +139,13 @@ export function drawHardShellMockup(context: MockupCanvasContext): MockupDrawRes
     ctx.font = `500 ${timeFontSize}px "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     ctx.fillStyle = textColor;
     ctx.textBaseline = "middle";
-    ctx.fillText("11:43", timeX, timeY + 1); // +1 para alinear ópticamente
+    ctx.fillText("11:43", timeX, timeY + 1); // +1 for optical alignment
     ctx.restore();
 
     const batPoleWidth = 2 * headerScale;
     const batPoleHeight = 4 * headerScale;
     const batX = screenX + screenWidth - statusBarPaddingX - batPoleWidth - batteryWidth;
-    const batY = timeY - batteryHeight / 2 + 1; // +1 alineación óptica
+    const batY = timeY - batteryHeight / 2 + 1; // +1 optical alignment
 
     ctx.save();
     ctx.strokeStyle = textColor;
@@ -155,7 +155,7 @@ export function drawHardShellMockup(context: MockupCanvasContext): MockupDrawRes
     ctx.stroke();
 
     const batPad = 1.5 * headerScale;
-    const fillWidth = (batteryWidth - batPad * 2) * 0.8; // 80% lleno
+    const fillWidth = (batteryWidth - batPad * 2) * 0.8; // 80% full
     const fillHeight = batteryHeight - batPad * 2;
     ctx.fillStyle = textColor;
     ctx.beginPath();
@@ -178,7 +178,7 @@ export function drawHardShellMockup(context: MockupCanvasContext): MockupDrawRes
     const totalSigWidth = (signalBarWidth * 4) + (sigGap * 3);
     const sigX = batX - 6 * headerScale - totalSigWidth;
     const sigMaxHeight = 12 * headerScale;
-    const sigYBottom = batY + batteryHeight; // Alineado por abajo con la batería
+    const sigYBottom = batY + batteryHeight; // Bottom-aligned with the battery
 
     ctx.save();
     ctx.fillStyle = textColor;

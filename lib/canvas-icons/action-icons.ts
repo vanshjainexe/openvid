@@ -195,13 +195,13 @@ export function drawWinButton(
 
 export function drawBackIcon(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string) {
     ctx.save();
-    ctx.globalAlpha = 0.8; // Las flechas suelen ser un poco más opacas que el refresh
+    ctx.globalAlpha = 0.8; // Arrows tend to be slightly more opaque than the refresh icon
     const scale = size / 24;
     ctx.translate(x, y);
     ctx.scale(scale, scale);
 
     ctx.strokeStyle = color;
-    ctx.lineWidth = 1.8; // Línea un poco más fina para elegancia
+    ctx.lineWidth = 1.8; // Slightly thinner line for elegance
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 

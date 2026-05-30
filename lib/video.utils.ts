@@ -14,10 +14,10 @@ export function waitForVideoFrame(video: HTMLVideoElement): Promise<void> {
         if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (video as any).requestVideoFrameCallback(done);
-            // Timeout de seguridad largo para evitar bloqueo
+            // Long safety timeout to prevent blocking
             setTimeout(done, 2000);
         } else {
-            // Fallback para navegadores que no soportan requestVideoFrameCallback
+            // Fallback for browsers that do not support requestVideoFrameCallback
             if (video.readyState >= 2) {
                 const handleSeeked = () => {
                     video.removeEventListener('seeked', handleSeeked);
@@ -33,10 +33,10 @@ export function waitForVideoFrame(video: HTMLVideoElement): Promise<void> {
 }
 
 /**
- * Asegura que el video esté listo para exportación
+ * Ensures the video is ready for export
  */
 export async function ensureVideoReady(video: HTMLVideoElement): Promise<void> {
-    // Si el video no está cargado, esperar
+    // Wait if video is not loaded yet
     if (video.readyState < 2) {
         await new Promise<void>((resolve) => {
             const onReady = () => {
@@ -52,7 +52,7 @@ export async function ensureVideoReady(video: HTMLVideoElement): Promise<void> {
     video.pause();
     video.currentTime = 0;
     
-    // Esperar breve para que el frame esté listo
+    // Brief wait for the frame to be ready
     await new Promise<void>(resolve => setTimeout(resolve, 100));
 }
 

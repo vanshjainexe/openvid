@@ -98,7 +98,7 @@ export function ChromeGlassMockup({
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" />
                     </svg>
                     <span className="truncate flex-1" style={{ fontSize: `${tabFontSz}px`, color: textColor }}>
-                        {url?.replace(/^https?:\/\//, "") ?? "Nueva pestaña"}
+                        {url?.replace(/^https?:\/\//, "") ?? "New tab"}
                     </span>
                     <svg style={{ width: `${tabCloseS}px`, height: `${tabCloseS}px`, flexShrink: 0, color: iconColor, opacity: 0.7 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path d="M6 18L18 6M6 6l12 12" strokeWidth="2.5" strokeLinecap="round" />

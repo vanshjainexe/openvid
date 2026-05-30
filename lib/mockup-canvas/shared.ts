@@ -36,7 +36,7 @@ export function drawMockupShadow(
     ctx.shadowBlur = shadowBlur;
     ctx.shadowOffsetY = shadowBlur * 0.3;
 
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)'; // Más visible para sombras notorias
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)'; // More visible for prominent shadows
     ctx.lineWidth = 1;
     drawRoundedRectPath(ctx, x, y, width, height, cornerRadius);
     ctx.stroke();

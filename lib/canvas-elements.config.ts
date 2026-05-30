@@ -22,7 +22,7 @@ function generateImageItems(
     });
 }
 
-// Elementos SVG destacados que se muestran directamente (11 slots)
+// Pinned SVG elements shown directly (11 slots)
 export const PINNED_SVG_ITEMS = [
     { id: "rectangle", name: "Rectángulo", icon: "ph:rectangle-bold" },
     { id: "circle", name: "Círculo", icon: "ph:circle-bold" },
@@ -37,7 +37,7 @@ export const PINNED_SVG_ITEMS = [
     { id: "chat", name: "Bocadillo", icon: "ph:chat-circle-bold" },
 ];
 
-// Elementos de imagen destacados que se muestran directamente (11 slots)
+// Pinned image elements shown directly (11 slots)
 export const PINNED_IMAGE_ITEMS = [
     { id: "overlay-01", name: "Overlay 1", imagePath: "/elements/images/overlays/overlay-01.webp" },
     { id: "overlay-11", name: "Overlay 11", imagePath: "/elements/images/overlays/overlay-11.webp" },

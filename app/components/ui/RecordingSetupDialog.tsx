@@ -92,7 +92,7 @@ export default function RecordingSetupDialog({ open, onClose, onStart }: Props) 
   const [devices, setDevices] = useState<AvailableDevices>({ cameras: [], microphones: [] });
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   
-  // Guardaremos códigos de error en lugar de strings duros
+  // Store error codes instead of hardcoded strings
   const [cameraErrorCode, setCameraErrorCode] = useState<string | null>(null);
   const [micErrorCode, setMicErrorCode] = useState<string | null>(null);
   

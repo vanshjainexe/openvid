@@ -67,7 +67,7 @@ export function GlassFullMockup({
                 style={{
                     padding: `${framePadding}px`,
                     backgroundColor: hexToRgba(frameColor, headerOpacity),
-                    borderRadius: `${cornerRadius * 2.8}px`, // Proporción similar a rounded-[3.5rem]
+                    borderRadius: `${cornerRadius * 2.8}px`, // Proportional to rounded-[3.5rem]
                     boxShadow: shadows > 0 
                         ? `0 ${shadows}px ${shadows * 2}px rgba(0,0,0,0.25)` 
                         : 'none',
@@ -120,7 +120,7 @@ export function GlassFullMockup({
                     className="relative w-full h-full overflow-hidden flex flex-col shadow-inner"
                     style={{
                         backgroundColor: screenBg,
-                        borderRadius: `${cornerRadius * 2.3}px`, // Proporción similar a rounded-[2.8rem]
+                        borderRadius: `${cornerRadius * 2.3}px`, // Proportional to rounded-[2.8rem]
                         border: `1px solid ${screenBorderColor}`,
                     }}
                 >

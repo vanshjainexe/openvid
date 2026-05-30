@@ -31,9 +31,9 @@ export function drawIPhoneSlimMockup(context: MockupCanvasContext): MockupDrawRe
 
     ctx.save();
     const drawButton = (percentY: number, percentH: number, isLeft: boolean) => {
-        const btnWidth = 4; // Ancho del botón (similar a w-1)
-        const btnRadius = 2; // Radio de las esquinas
-        const overlap = 2; // Píxeles que entran hacia el marco para ocultar la unión
+        const btnWidth = 4; // Button width (similar to w-1)
+        const btnRadius = 2; // Corner radius
+        const overlap = 2; // Pixels that overlap the frame to hide the joint
         const btnY = y + (height * percentY);
         const btnH = height * percentH;
 

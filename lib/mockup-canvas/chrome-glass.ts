@@ -246,7 +246,7 @@ export function drawChromeGlassMockup(context: MockupCanvasContext): MockupDrawR
     ctx.fillStyle = bgColor;
     ctx.fillRect(innerX, innerY + totalHeaderH, innerWidth, innerHeight - totalHeaderH);
 
-    ctx.restore(); // fin clip
+    ctx.restore(); // end clip
 
     return {
         contentX: innerX,

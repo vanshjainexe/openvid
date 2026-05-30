@@ -218,7 +218,7 @@ export function drawChromeMockup(context: MockupCanvasContext): MockupDrawResult
     ctx.fillStyle = bgColor;
     ctx.fillRect(x, y + totalHeaderH, width, height - totalHeaderH);
 
-    ctx.restore(); // fin clip global
+    ctx.restore(); // end global clip
 
     return {
         contentX: x,

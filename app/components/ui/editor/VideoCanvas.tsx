@@ -857,7 +857,7 @@ export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(funct
         }
     };
 
-    // Función para dibujar un frame en el canvas de exportación
+    // Function to draw a frame on the export canvas
     const drawFrame = async () => {
         const canvas = exportCanvasRef.current;
         const canvasCtxOptions: CanvasRenderingContext2DSettings = { alpha: true, colorSpace: 'srgb', desynchronized: false, willReadFrequently: false };
@@ -1282,7 +1282,7 @@ export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(funct
             }
         }
 
-        // ... A partir de aquí, continúa el resto de tu código exactamente igual:
+        // ... From here, the rest of the code continues as-is:
         const { size, left: drawX, top: drawY } = getCameraLayout(
             cameraConfig,
             canvasWidth,

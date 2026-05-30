@@ -51,7 +51,7 @@ export function drawGlassFullMockup(context: MockupCanvasContext): MockupDrawRes
     const drawButton = (percentY: number, percentH: number, isLeft: boolean) => {
         const btnW = buttonWidth;
         const btnR = 2 * headerScale;
-        const overlap = 2; // Para solapar con el marco y evitar líneas
+        const overlap = 2; // Overlap the frame to avoid visible lines
         const btnY = y + (height * percentY);
         const btnH = height * percentH;
 
@@ -80,9 +80,9 @@ export function drawGlassFullMockup(context: MockupCanvasContext): MockupDrawRes
         ctx.stroke();
     };
 
-    drawButton(0.15, 0.05, true);  // Silencio
-    drawButton(0.25, 0.12, true);  // Volumen Arriba
-    drawButton(0.28, 0.14, false); // Encendido
+    drawButton(0.15, 0.05, true);  // Mute
+    drawButton(0.25, 0.12, true);  // Volume Up
+    drawButton(0.28, 0.14, false); // Power
     ctx.restore();
 
     ctx.save();

@@ -57,7 +57,7 @@ export function S24UltraMockup({
                 style={{
                     padding: `${framePadding}px`,
                     backgroundColor: frameColor,
-                    borderRadius: `${cornerRadius * 1.2}px`, // S24 Ultra es más cuadrado
+                    borderRadius: `${cornerRadius * 1.2}px`, // S24 Ultra is more square
                     border: `1px solid ${frameBorderColor}`,
                     boxShadow: shadows > 0 
                         ? `0 ${shadows / 2}px ${shadows}px -12px rgba(0,0,0,0.5)` 
