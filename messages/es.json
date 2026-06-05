@@ -418,6 +418,7 @@
     },
     "tools": {
       "mockup": "Mockup",
+      "motion": "Motion",
       "videos": "Vídeos",
       "elements": "Elementos",
       "audio": "Audio",
@@ -430,6 +431,7 @@
     "tools": {
       "background": "Fondo",
       "mockup": "Mockup",
+      "motion": "Motion",
       "videos": "Videos",
       "elements": "Elementos",
       "audio": "Audio",
@@ -447,6 +449,10 @@
       "mockup": {
         "title": "Generador de Mockups",
         "description": "Envuelve tus capturas en navegadores, dispositivos móviles o IDEs"
+      },
+      "motion": {
+        "title": "Generador de Motion",
+        "description": "Añade efectos de movimiento a tus capturas para hacerlas más dinámicas"
       },
       "videos": {
         "title": "Importar Videos",
