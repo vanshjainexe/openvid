@@ -60,7 +60,6 @@ async function openDB(): Promise<IDBDatabase> {
     });
 }
 
-
 function calculateAspectRatio(width: number, height: number): string {
     if (!width || !height) return "auto";
     const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b));

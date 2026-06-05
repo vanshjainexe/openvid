@@ -61,7 +61,13 @@ export const PINNED_IMAGE_ITEMS = [
     { id: "sticker-60", name: "Sticker 60", imagePath: "/elements/images/stickers/sticker-60.webp" },
     { id: "sticker-61", name: "Sticker 61", imagePath: "/elements/images/stickers/sticker-61.webp" },
     { id: "sticker-62", name: "Sticker 62", imagePath: "/elements/images/stickers/sticker-62.webp" },
+    { id: "sticker-63", name: "Sticker 63", imagePath: "/elements/images/stickers/sticker-63.webp" },
     { id: "sticker-69", name: "Sticker 69", imagePath: "/elements/images/stickers/sticker-69.webp" },
+    { id: "sticker-70", name: "Sticker 70", imagePath: "/elements/images/stickers/sticker-70.webp" },
+    { id: "sticker-71", name: "Sticker 71", imagePath: "/elements/images/stickers/sticker-71.webp" },
+    { id: "sticker-72", name: "Sticker 72", imagePath: "/elements/images/stickers/sticker-72.webp" },
+    { id: "sticker-73", name: "Sticker 73", imagePath: "/elements/images/stickers/sticker-73.webp" },
+    { id: "sticker-74", name: "Sticker 74", imagePath: "/elements/images/stickers/sticker-74.webp" },
 ];
 
 export const SVG_CATEGORIES: SvgCategory[] = [
