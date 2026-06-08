@@ -189,7 +189,10 @@ openvidshot/
 │   │       ├── floating/                # FloatingCameraPreview, RecordingOverlay, ExportOverlay
 │   │       └── ...                      # AspectRatioSelect, BackgroundColorEditor, ExportDropdown, PhotoPicker, RecordingSetup, SidebarTool, Skeleton, SliderControl, TabButton, TemplateEditorShell, WalpaperSections
 │   ├── config/env.ts                    # ENV tipado (unsplash, pexels, pixabay keys)
-│   ├── contexts/MotionContext.tsx       # Estado global de motion/3D phone
+│   ├── contexts/       
+│   │   ├── MotionContext.tsx                # Estado global de motion/3D phone
+│   │   ├── RecordingContext.tsx             # Provider de grabación + Alt+S/Alt+D shortcuts
+│   │   ├── useAuth.tsx                      # Sesión Supabase + AuthProvider
 │   ├── [locale]/
 │   │   ├── (auth)/login/                # Página de login
 │   │   ├── (editor)/editor/             # Página principal del editor (page.tsx ~3000 líneas)
@@ -210,8 +213,6 @@ openvidshot/
 │   └── cursor-svg/                      # SVGs de cursores animados (Mac/Windows/Dot)
 │
 ├── hooks/                               # React hooks de dominio
-│   ├── RecordingContext.tsx             # Provider de grabación + Alt+S/Alt+D shortcuts
-│   ├── useAuth.tsx                      # Sesión Supabase + AuthProvider
 │   ├── useScreenCapture.ts              # Captura de pantalla (imagen)
 │   ├── useScreenRecording.ts            # Grabación de pantalla (video) con camera + audio
 │   ├── useVideoUpload.ts / useVideoThumbnails.ts / useVideoExport.ts
@@ -438,8 +439,8 @@ El componente `Editor` raíz coordina todo el estado y los hooks del editor:
 ### 5.3 Contexts y providers
 
 - **`MotionContext`** (`app/contexts/MotionContext.tsx`) — state global de motion templates, intensity, style, animMode, image phone X/Y/scale/rotation, device. Hook `useMotionContext`.
-- **`AuthProvider`** (`hooks/useAuth.tsx`) — sesión Supabase + user profile.
-- **`RecordingProvider`** (`hooks/RecordingContext.tsx`) — wrapper de `useScreenRecording` con shortcuts Alt+S/Alt+D.
+- **`AuthProvider`** (`app/contexts/useAuth.tsx`) — sesión Supabase + user profile.
+- **`RecordingProvider`** (`app/contexts/RecordingContext.tsx`) — wrapper de `useScreenRecording` con shortcuts Alt+S/Alt+D.
 - **`TooltipProvider`** (`components/ui/tooltip.tsx`) — Radix tooltip con `delayDuration={200}`.
 - **`NextIntlClientProvider`** en `[locale]/layout.tsx` para i18n.
 
