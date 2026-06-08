@@ -414,7 +414,8 @@
       "camera": "Камера",
       "cursor": "Курсор",
       "toolbar": "Панель инструментов",
-      "soon": "Скоро"
+      "soon": "Скоро",
+      "newTool": "Новый"
     },
     "popovers": {
       "background": {

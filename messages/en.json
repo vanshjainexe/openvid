@@ -442,7 +442,8 @@
       "cursor": "Cursor",
       "toolbar": "Tools toolbar",
       "soon": "Soon",
-      "motion": "Motion"
+      "motion": "Motion",
+      "newTool": "New"
     },
     "popovers": {
       "background": {
