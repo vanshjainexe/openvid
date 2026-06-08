@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@iconify/react";
 import StepRow from "./StepRow";
-import { useRecording } from "@/hooks/RecordingContext";
+import { useRecording } from "@/app/contexts/RecordingContext";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import RecordingSetupDialog from "../RecordingSetupDialog";
 import { useTranslations } from "next-intl";

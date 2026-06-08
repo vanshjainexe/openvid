@@ -20,13 +20,14 @@ interface SidebarToolProps {
     isActive?: boolean;
     onClick?: () => void;
     badge?: string;
+    badgeStyle?: "default" | "premium";
     badgeCount?: number;
     disabled?: boolean;
     popover?: PopoverConfig;
 }
 
 export const SidebarTool = forwardRef<HTMLButtonElement, SidebarToolProps>(
-    ({ icon, label, isActive, onClick, badge, badgeCount, disabled, popover }, ref) => {
+    ({ icon, label, isActive, onClick, badge, badgeStyle, badgeCount, disabled, popover }, ref) => {
         const [isOpen, setIsOpen] = useState(false);
         const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -61,8 +62,18 @@ export const SidebarTool = forwardRef<HTMLButtonElement, SidebarToolProps>(
                     </div>
                 )}
                 {badge && (
-                    <div className="absolute -top-1 -right-0.5 z-10 px-1.5 py-0.5 bg-linear-to-r from-gray-500 to-gray-500 rounded-full border border-white/20 shadow-lg pointer-events-none">
-                        <span className="text-[8px] font-bold text-white tracking-widest uppercase block drop-shadow-sm leading-none">
+                    <div
+                        className={`absolute -top-1 -right-0.5 z-10 pointer-events-none select-none flex items-center justify-center min-w-[42px] ${badgeStyle === "premium"
+                            ? "px-1 py-[3px] rounded-full border border-rose-400/40 shadow-[0_0_20px_rgba(244,63,94,0.3)] bg-gradient-to-r from-violet-600 via-pink-600 to-amber-500"
+                            : "px-1.5 py-0.5 rounded-full border border-white/20 shadow-lg bg-linear-to-r from-gray-500 to-gray-500"
+                            }`}
+                    >
+                        <span
+                            className={`block font-bold uppercase leading-none text-center ${badgeStyle === "premium"
+                                ? "text-[8.5px] font-black text-white tracking-[0.2em] pl-[0.2em] drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.6)]"
+                                : "text-[8px] text-white tracking-[0.18em] pl-[0.18em] drop-shadow-sm"
+                                }`}
+                        >
                             {badge}
                         </span>
                     </div>

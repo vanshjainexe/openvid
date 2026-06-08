@@ -38,7 +38,7 @@ export function PhotoEditorPlaceholder({
 }: PhotoEditorPlaceholderProps) {
     const previewImageUrl = staticImageUrl ?? canvasImageUrl;
     const t = useTranslations("editor");
-    const { imagePhoneActive, setImagePhoneRotX, setImagePhoneRotY, setImagePhonePresetId } = useMotionContext();
+    const { imagePhoneActive, imagePhoneDevice, setImagePhoneRotX, setImagePhoneRotY, setImagePhoneRotZ, setImagePhonePerspective, setImagePhoneScale, setImagePhoneY, setImagePhonePresetId } = useMotionContext();
     const [customConfig, setCustomConfig] = useState<Preview3DConfig>({
         id: "custom",
         label: "Custom",
@@ -175,20 +175,95 @@ export function PhotoEditorPlaceholder({
                             )}
                             {/* 3D preview: phone shape when phone active, CSS-transformed image otherwise */}
                             <div className="absolute inset-0 flex items-center justify-center z-10">
-                                {imagePhoneActive ? (
+                                    {imagePhoneActive ? (
+                                    imagePhoneDevice === "laptop" ? (
+                                        // ── Laptop thumbnail ──
+                                        // Uses config.rotateX/Y directly (same Euler convention as Laptop3DViewer)
+                                        <div style={{
+                                            perspective: `${Math.round((config.perspective || 600) * 0.5)}px`,
+                                            perspectiveOrigin: 'center center',
+                                        }}>
+                                            <div style={{
+                                                transform: `rotateX(${config.rotateX}deg) rotateY(${config.rotateY}deg)`,
+                                                transformStyle: 'preserve-3d',
+                                                transition: 'transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                                                width: 88,
+                                                height: 54,
+                                                position: 'relative',
+                                                filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.7))',
+                                            }}>
+                                                {/* Pantalla / Lid */}
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    right: 0,
+                                                    height: '68%',
+                                                    borderRadius: '3px 3px 0 0',
+                                                    border: '1.5px solid rgba(255,255,255,0.22)',
+                                                    background: 'linear-gradient(150deg, #1a1a2a 0%, #0d0d15 100%)',
+                                                    overflow: 'hidden',
+                                                }}>
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        inset: '2px',
+                                                        borderRadius: '2px',
+                                                        overflow: 'hidden',
+                                                        ...(previewImageUrl
+                                                            ? { backgroundImage: `url(${previewImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                                                            : { background: 'rgba(0,163,255,0.10)' }
+                                                        ),
+                                                    }} />
+                                                    {/* Camara */}
+                                                    <div style={{
+                                                        position: 'absolute', top: 1, left: '50%',
+                                                        transform: 'translateX(-50%)',
+                                                        width: 3, height: 3, borderRadius: '50%',
+                                                        background: 'rgba(255,255,255,0.15)',
+                                                    }} />
+                                                </div>
+                                                {/* Base / Keyboard */}
+                                                <div style={{
+                                                    position: 'absolute',
+                                                    bottom: 0,
+                                                    left: 0,
+                                                    right: 0,
+                                                    height: '34%',
+                                                    borderRadius: '0 0 3px 3px',
+                                                    background: 'linear-gradient(180deg, #cecfd3 0%, #b4b5bb 100%)',
+                                                    border: '1px solid rgba(200,200,200,0.3)',
+                                                }}>
+                                                    {/* Keyboard texture lines */}
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        top: '30%', left: '8%', right: '8%', height: '40%',
+                                                        background: 'repeating-linear-gradient(90deg, rgba(0,0,0,0.12) 0px, rgba(0,0,0,0.12) 1px, transparent 1px, transparent 5px)',
+                                                        borderRadius: '1px',
+                                                    }} />
+                                                    {/* Trackpad */}
+                                                    <div style={{
+                                                        position: 'absolute',
+                                                        bottom: '12%', left: '35%', right: '35%', height: '28%',
+                                                        borderRadius: '1px',
+                                                        background: 'rgba(0,0,0,0.10)',
+                                                        border: '0.5px solid rgba(0,0,0,0.15)',
+                                                    }} />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
                                     (() => {
                                         // Usar el offset de Three.js para que la thumbnail coincida con el canvas
                                         const phoneOffset = PREVIEW_TO_PHONE_OFFSET[config.id];
                                         const previewRx = (phoneOffset?.rx ?? 0) + NRX;  // total = NRX + userOffset
-                                        const previewRy = (phoneOffset?.ry ?? 0) + NRY;
-                                        const cssRy = -previewRy;  // invertir para CSS
+                                        const previewRy = (phoneOffset?.ry ?? 0) + NRY;  // CSS y Three.js comparten convención (+Y = left forward)
                                         return (
                                             <div style={{
                                                 perspective: `${Math.round((config.perspective || 600) * 0.55)}px`,
                                                 perspectiveOrigin: 'center center',
                                             }}>
                                                 <div style={{
-                                                    transform: `rotateX(${previewRx}deg) rotateY(${cssRy}deg)`,
+                                                    transform: `rotateX(${previewRx}deg) rotateY(${previewRy}deg)`,
                                                     transformStyle: 'preserve-3d',
                                                     transition: 'transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                                                     width: 53,
@@ -227,6 +302,7 @@ export function PhotoEditorPlaceholder({
                                             </div>
                                         );
                                     })()
+                                    )
                                 ) : (
                                     <div
                                         style={{ perspective: `${config.perspective || 600}px`, perspectiveOrigin: 'center center' }}
@@ -290,16 +366,20 @@ export function PhotoEditorPlaceholder({
                         </PopoverHeader>
 
                         <div className="space-y-4">
-                            <SliderControl
-                                icon="mdi:cube-outline"
-                                label={t("photoPreview.custom.perspective")}
-                                value={customConfig.perspective || 600}
-                                min={200}
-                                max={1000}
-                                step={50}
-                                onChange={(value) => updateCustomConfig({ perspective: value })}
-                                suffix="px"
-                            />
+                            {!imagePhoneActive && (
+                                <SliderControl
+                                    icon="mdi:cube-outline"
+                                    label={t("photoPreview.custom.perspective")}
+                                    value={customConfig.perspective || 600}
+                                    min={200}
+                                    max={1000}
+                                    step={50}
+                                    onChange={(value) => {
+                                        updateCustomConfig({ perspective: value });
+                                    }}
+                                    suffix="px"
+                                />
+                            )}
 
                             <SliderControl
                                 icon="mdi:resize"
@@ -308,7 +388,10 @@ export function PhotoEditorPlaceholder({
                                 min={50}
                                 max={150}
                                 step={5}
-                                onChange={(value) => updateCustomConfig({ scale: value / 100 })}
+                                onChange={(value) => {
+                                    updateCustomConfig({ scale: value / 100 });
+                                    if (imagePhoneActive) setImagePhoneScale(value / 100);
+                                }}
                                 suffix="%"
                             />
 
@@ -328,7 +411,7 @@ export function PhotoEditorPlaceholder({
                                         updateCustomConfig({ rotateY: rY, rotateX: rX });
                                         if (imagePhoneActive) {
                                             setImagePhoneRotX(rX);
-                                            setImagePhoneRotY(-rY);
+                                            setImagePhoneRotY(rY);
                                         }
                                     }}
                                 >
@@ -337,7 +420,7 @@ export function PhotoEditorPlaceholder({
                                         <div className="h-full w-px bg-white/5 absolute" />
                                     </div>
                                     <div
-                                        className={`absolute w-2.5 h-2.5 rounded-full bg-gradient-primary shadow-[0_0_10px_rgba(0,163,255,0.5)]`}
+                                        className={`absolute w-2.5 h-2.5 rounded-full bg-cyan-500 shadow-[0_0_10px_rgba(0,163,255,0.5)]`}
                                         style={{
                                             left: `${50 + (-customConfig.rotateY / 45) * 50}%`,
                                             top: `${50 + (customConfig.rotateX / 45) * 50}%`,
@@ -355,7 +438,10 @@ export function PhotoEditorPlaceholder({
                                 min={-45}
                                 max={45}
                                 step={5}
-                                onChange={(value) => updateCustomConfig({ rotateZ: value })}
+                                onChange={(value) => {
+                                    updateCustomConfig({ rotateZ: value });
+                                    if (imagePhoneActive) setImagePhoneRotZ(value);
+                                }}
                                 suffix="°"
                             />
 
@@ -364,9 +450,12 @@ export function PhotoEditorPlaceholder({
                                 label={t("photoPreview.custom.vertical")}
                                 value={customConfig.translateY}
                                 min={-10}
-                                max={10}
+                                max={100}
                                 step={1}
-                                onChange={(value) => updateCustomConfig({ translateY: value })}
+                                onChange={(value) => {
+                                    updateCustomConfig({ translateY: value });
+                                    if (imagePhoneActive) setImagePhoneY(value);
+                                }}
                                 suffix="%"
                             />
                         </div>
@@ -385,6 +474,14 @@ export function PhotoEditorPlaceholder({
                                 };
                                 setCustomConfig(resetConfig);
                                 if (selectedPreviewId === "custom") onSelectPreview?.(resetConfig);
+                                if (imagePhoneActive) {
+                                    setImagePhoneRotX(0);
+                                    setImagePhoneRotY(0);
+                                    setImagePhoneRotZ(0);
+                                    setImagePhonePerspective(600);
+                                    setImagePhoneScale(0.9);
+                                    setImagePhoneY(0);
+                                }
                             }}
                             className="w-full mt-4 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] text-white/60 hover:text-white transition-all flex items-center justify-center gap-2 border border-white/5"
                         >
@@ -452,6 +549,14 @@ export function PhotoEditorPlaceholder({
                                     perspective: 600
                                 };
                                 setCustomConfig(defaultCustom);
+                                if (imagePhoneActive) {
+                                    setImagePhoneRotX(0);
+                                    setImagePhoneRotY(0);
+                                    setImagePhoneRotZ(0);
+                                    setImagePhonePerspective(600);
+                                    setImagePhoneScale(0.9);
+                                    setImagePhoneY(0);
+                                }
                                 onReset?.();
                             }}
                         >

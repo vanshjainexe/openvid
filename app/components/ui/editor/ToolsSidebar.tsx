@@ -7,7 +7,7 @@ import type { EditorMode } from "@/types/editor-mode.types";
 import { useRef, useState, useEffect, useCallback } from "react";
 import { useTranslations } from "next-intl";
 import { TooltipAction } from "@/components/ui/tooltip-action";
-import { useRecording } from "@/hooks/RecordingContext";
+import { useRecording } from "@/app/contexts/RecordingContext";
 import RecordingSetupDialog from "../RecordingSetupDialog";
 
 interface ExtendedToolsSidebarProps extends ToolsSidebarProps {
@@ -260,19 +260,22 @@ export function ToolsSidebar({
                             videoSrc: "/videos/preview-mockup.mp4"
                         }}
                     />
-
-                    <SidebarTool
-                        icon="mage:box-3d"
-                        label={t("tools.motion")}
-                        isActive={activeTool === "motion"}
-                        onClick={() => onToolChange("motion")}
-                        popover={{
-                            title: t("popovers.motion.title"),
-                            description: t("popovers.motion.description"),
-                            videoSrc: "/videos/preview-motion.mp4"
-                        }}
-                    />
-
+                    {isPhotoMode && (
+                        <SidebarTool
+                            icon="mage:box-3d"
+                            label={t("tools.motion")}
+                            isActive={activeTool === "motion"}
+                            onClick={() => onToolChange("motion")}
+                            popover={{
+                                title: t("popovers.motion.title"),
+                                description: t("popovers.motion.description"),
+                                videoSrc: "/videos/preview-motion.mp4"
+                            }}
+                            badge={t("tools.newTool")}
+                            badgeStyle="premium"
+                        />
+                    )}
+                    
                     {/* Video-specific tools - hidden in photo mode */}
                     {!isPhotoMode && (
                         <SidebarTool

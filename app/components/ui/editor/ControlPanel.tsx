@@ -284,7 +284,14 @@ export function ControlPanel({
 
                 {activeTool === "motion" && (
                     <Suspense fallback={<MockupMenuSkeleton />}>
-                        {mediaType === "image" ? <ImageMotionMenu /> : <MotionMenu />}
+                        {mediaType === "image"
+                            ? <ImageMotionMenu
+                                backgroundColorCss={undefined}
+                                backgroundTab={backgroundTab}
+                                selectedWallpaper={selectedWallpaper}
+                                selectedImageUrl={selectedImageUrl}
+                              />
+                            : <MotionMenu />}
                     </Suspense>
                 )}
 

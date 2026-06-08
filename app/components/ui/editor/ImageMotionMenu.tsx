@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Icon } from "@iconify/react";
 import { useMotionContext } from "@/app/contexts/MotionContext";
 import { SliderControl } from "../SliderControl";
+import { getWallpaperUrl } from "@/lib/wallpaper.utils";
 
 const PAD_H = 130;
 const X_HALF = 500;
@@ -11,11 +12,14 @@ const Y_HALF = 500;
 const HANDLE_R = 9;
 
 function PositionPad({
-  x, y, onChangeX, onChangeY,
+  x, y, onChangeX, onChangeY, onDragStart, backgroundUrl, backgroundColorCss,
 }: {
   x: number; y: number;
   onChangeX: (v: number) => void;
   onChangeY: (v: number) => void;
+  onDragStart?: () => void;
+  backgroundUrl?: string | null;
+  backgroundColorCss?: string | null;
 }) {
   const padRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -31,7 +35,7 @@ function PositionPad({
 
   const fromEvent = (e: React.PointerEvent) => {
     if (!padRef.current) return;
-    
+
     const rect = padRef.current.getBoundingClientRect();
     const currentWidth = rect.width;
 
@@ -42,32 +46,57 @@ function PositionPad({
     onChangeY(Math.round((ry / PAD_H) * Y_HALF * 2 - Y_HALF));
   };
 
-  const handleReset = (e: React.PointerEvent) => {
-    e.stopPropagation();
-    onChangeX(0);
-    onChangeY(0);
-  };
+  // Build the background layer style: prefer the image URL, fall back to a CSS color/gradient
+  const bgLayerStyle: React.CSSProperties = backgroundUrl
+    ? {
+      backgroundImage: `url('${backgroundUrl}')`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+    }
+    : backgroundColorCss
+      ? (backgroundColorCss.startsWith("#") || backgroundColorCss.startsWith("rgb"))
+        ? { backgroundColor: backgroundColorCss }
+        : { backgroundImage: backgroundColorCss, backgroundSize: "cover", backgroundPosition: "center" }
+      : {};
 
   return (
     <div className="relative group w-full cursor-default">
       <div
         ref={padRef}
-        className="relative w-full rounded-[14px] overflow-hidden select-none bg-zinc-950/80 border border-zinc-800/50 shadow-[inset_0_2px_8px_rgba(0,0,0,0.8)]"
+        className={`relative w-full rounded-[14px] overflow-hidden select-none border shadow-[inset_0_2px_8px_rgba(0,0,0,0.8)] transition-all duration-200 ${isDraggingState
+          ? "border-cyan-500/40 ring-1 ring-cyan-500/20"
+          : "border-zinc-800/50"
+          }`}
         style={{ height: PAD_H }}
         onPointerDown={(e) => {
           dragging.current = true;
           setIsDraggingState(true);
           (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+          onDragStart?.();
           fromEvent(e);
         }}
         onPointerMove={(e) => { if (dragging.current) fromEvent(e); }}
-        onPointerUp={() => { 
-          dragging.current = false; 
+        onPointerUp={() => {
+          dragging.current = false;
           setIsDraggingState(false);
         }}
       >
+        {/* Background layer (canvas background) */}
+        <div className="absolute inset-0 pointer-events-none" style={bgLayerStyle} />
+
+        {/* Dark overlay so the grid/handles remain readable on bright backgrounds */}
+        <div className="absolute inset-0 pointer-events-none bg-black/40" />
+
+        {/* Active highlight ring while dragging */}
+        {isDraggingState && (
+          <div className="absolute inset-0 pointer-events-none rounded-[14px] ring-2 ring-cyan-400/30 animate-pulse" />
+        )}
+
+        {/* Grid */}
         <div className="absolute inset-0 pointer-events-none opacity-10 bg-[radial-gradient(#a1a1aa_1px,transparent_1px)] bg-size-[14px_14px]" />
 
+        {/* Crosshairs */}
         <div className="absolute top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-white/10 to-transparent" style={{ left: '50%' }} />
         <div className="absolute left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" style={{ top: '50%' }} />
 
@@ -75,31 +104,20 @@ function PositionPad({
         <div className="absolute pointer-events-none bg-white/5 transition-opacity" style={{ top: hy, left: 0, right: 0, height: 1 }} />
 
         <div
-          className={`absolute bg-white border border-white/40 rounded-full shadow-[0_0_20px_4px_rgba(255,255,255,0.12),0_4px_12px_rgba(0,0,0,0.6)] mix-blend-screen flex items-center justify-center transition-all duration-75 pointer-events-auto ${
-            isDraggingState ? "cursor-grabbing" : "cursor-grab"
-          }`}
+          className={`absolute bg-white border border-white/40 rounded-full shadow-[0_0_20px_4px_rgba(255,255,255,0.12),0_4px_12px_rgba(0,0,0,0.6)] mix-blend-screen flex items-center justify-center transition-all duration-75 pointer-events-auto ${isDraggingState ? "cursor-grabbing scale-125" : "cursor-grab"
+            }`}
           style={{
-            width: HANDLE_R * 2,
-            height: HANDLE_R * 2,
+            width: HANDLE_R * 3,
+            height: HANDLE_R * 3,
             left: `calc(${pctX * 100}% - ${HANDLE_R}px)`,
             top: hy - HANDLE_R,
           }}
         >
-          <div className="w-1.5 h-1.5 bg-zinc-950 rounded-full" />
         </div>
-        <button
-          onPointerDown={handleReset}
-          className="absolute top-1.5 left-1.5 z-10 opacity-0 group-hover:opacity-100 transition-all duration-200 text-[9px] font-medium text-zinc-400 hover:text-white flex items-center gap-1 bg-zinc-900/95 hover:bg-zinc-800 px-2 py-0.5 rounded-md border border-white/5 shadow-lg active:scale-95 cursor-pointer"
-          title="Restablecer posición al centro"
-        >
-          <Icon icon="lucide:rotate-ccw" className="w-2.5 h-2.5 text-zinc-500 group-hover:text-white" />
-          <span>Reset</span>
-        </button>
       </div>
     </div>
   );
 }
-
 
 // ─── Device template definition ───────────────────────────────────────────────
 const IMAGE_DEVICE_TEMPLATES = [
@@ -110,11 +128,18 @@ const IMAGE_DEVICE_TEMPLATES = [
     icon: "ph:prohibit",
   },
   {
+    id: "iphone-13-pro-max",
+    title: "iPhone 13 Pro",
+    accentColor: "#7C7C85",
+    icon: "simple-icons:apple",
+    modelUrl: "/models/apple_iphone_13_pro_max.glb",
+  },
+  {
     id: "phone",
     title: "Phone",
     accentColor: "#00A3FF",
     icon: "ph:device-mobile-bold",
-    modelUrl: undefined as string | undefined,
+    modelUrl: "/models/phone-gltf.glb",
   },
   {
     id: "iphone",
@@ -130,12 +155,41 @@ const IMAGE_DEVICE_TEMPLATES = [
     icon: "simple-icons:samsung",
     modelUrl: "/models/samsung-galaxy-s25-ultra.glb",
   },
+  {
+    id: "laptop",
+    title: "macOS Laptop",
+    accentColor: "#CECFD3",
+    icon: "ph:laptop-bold",
+    modelUrl: "/models/mac-book.glb",
+  }
 ] as const;
 
 type ImageDeviceId = typeof IMAGE_DEVICE_TEMPLATES[number]["id"];
 
 // ─── ImageMotionMenu ──────────────────────────────────────────────────────────
-export function ImageMotionMenu() {
+export function ImageMotionMenu({
+  backgroundUrl,
+  backgroundColorCss,
+  backgroundTab,
+  selectedWallpaper,
+  selectedImageUrl,
+}: {
+  backgroundUrl?: string | null;
+  backgroundColorCss?: string | null;
+  backgroundTab?: "wallpaper" | "image" | "color" | "unsplash";
+  selectedWallpaper?: number;
+  selectedImageUrl?: string;
+}) {
+  // Compute the current canvas background URL based on the active tab
+  const resolvedBackgroundUrl = (() => {
+    if (backgroundUrl) return backgroundUrl;
+    if (backgroundTab === "image" && selectedImageUrl) return selectedImageUrl;
+    if (backgroundTab === "wallpaper" && typeof selectedWallpaper === "number" && selectedWallpaper >= 0) {
+      return getWallpaperUrl(selectedWallpaper);
+    }
+    return null;
+  })();
+
   const {
     imagePhoneActive, setImagePhoneActive,
     imagePhoneX, setImagePhoneX,
@@ -143,43 +197,64 @@ export function ImageMotionMenu() {
     imagePhoneScale, setImagePhoneScale,
     setImagePhoneRotX, setImagePhoneRotY,
     imagePhoneDevice, setImagePhoneDevice,
+    imagePhoneOpening, setImagePhoneOpening,
+    imagePhoneShadow, setImagePhoneShadow,
+    imagePhoneShadowColor, setImagePhoneShadowColor,
+    pushHistory,
   } = useMotionContext();
 
   const activeDeviceId: ImageDeviceId = imagePhoneActive ? imagePhoneDevice : "none";
+  const isLaptop = imagePhoneActive && imagePhoneDevice === "laptop";
 
   const handleDeviceClick = (id: ImageDeviceId) => {
     if (id === "none") {
       setImagePhoneActive(false);
     } else {
-      setImagePhoneDevice(id);
+      if (id !== imagePhoneDevice) {
+        setImagePhoneDevice(id);
+        setImagePhoneX(0);
+        setImagePhoneY(0);
+        setImagePhoneScale(0.8);
+        // ← Inicializar rotación con los defaults correctos según el device
+        if (id === "iphone-13-pro-max") {
+          setImagePhoneRotX(-58.23);
+          setImagePhoneRotY(-29.82);
+        } else {
+          setImagePhoneRotX(0);
+          setImagePhoneRotY(0);
+        }
+        if (id === "laptop") {
+          setImagePhoneOpening(1);
+          setImagePhoneScale(1);
+        }
+      }
       setImagePhoneActive(true);
-      setImagePhoneX(0);
-      setImagePhoneY(0);
-      setImagePhoneScale(1);
-      setImagePhoneRotX(0);
-      setImagePhoneRotY(0);
     }
   };
 
   const handleReset = () => {
     setImagePhoneX(0);
     setImagePhoneY(0);
-    setImagePhoneScale(1);
+    setImagePhoneScale(0.8);
     setImagePhoneRotX(0);
     setImagePhoneRotY(0);
+    if (imagePhoneDevice === "laptop") {
+      setImagePhoneOpening(1);
+      setImagePhoneShadow(0.7);
+    } else {
+      setImagePhoneShadow(0.4);
+    }
+    setImagePhoneShadowColor("#000000");
   };
 
   return (
     <div className="p-4 flex flex-col gap-5 w-full bg-[#111113] min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-white/90 font-semibold text-sm tracking-wide">
-          <Icon icon="ph:device-mobile-bold" width="16" className="text-blue-400" />
+        <div className="flex items-center gap-2 text-white font-medium">
+          <Icon icon="mage:box-3d" width="20" aria-hidden="true" />
           <span>Motion</span>
         </div>
-        <span className="text-[9px] uppercase tracking-widest text-white/25 font-bold bg-white/5 px-2 py-0.5 rounded-full border border-white/6">
-          Imagen
-        </span>
       </div>
 
       {/* Device template grid */}
@@ -226,12 +301,6 @@ export function ImageMotionMenu() {
                   <h3 className={`truncate text-xs font-semibold ${isActive ? "text-white" : "text-white/60"}`}>
                     {tpl.title}
                   </h3>
-                  {isActive && (
-                    <div
-                      className="size-1.5 rounded-full flex-shrink-0"
-                      style={{ background: tpl.accentColor }}
-                    />
-                  )}
                 </div>
               </button>
 
@@ -267,37 +336,47 @@ export function ImageMotionMenu() {
             label="Escala"
             value={Math.round(imagePhoneScale * 100)}
             min={30}
-            max={200}
+            max={300}
             step={1}
-            onChange={(v) => setImagePhoneScale(v / 100)}
+            onChange={(v) => { pushHistory(); setImagePhoneScale(v / 100); }}
+            suffix="%"
+          />
+
+          {isLaptop && (
+            <SliderControl
+              icon="material-symbols:laptop-chromebook-outline"
+              label="Apertura de laptop"
+              value={Math.round(imagePhoneOpening * 100)}
+              min={0}
+              max={100}
+              step={1}
+              onChange={(v) => { pushHistory(); setImagePhoneOpening(v / 100); }}
+              suffix="%"
+            />
+          )}
+
+          <SliderControl
+            icon="mdi:blur"
+            label="Sombra"
+            value={Math.round(imagePhoneShadow * 100)}
+            min={0}
+            max={100}
+            step={1}
+            onChange={(v) => { pushHistory(); setImagePhoneShadow(v / 100); }}
             suffix="%"
           />
 
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] text-white/40 font-medium">Posición</span>
+            <span className="text-xs text-white/60 font-medium">Posición</span>
             <PositionPad
               x={imagePhoneX}
               y={imagePhoneY}
               onChangeX={setImagePhoneX}
               onChangeY={setImagePhoneY}
+              onDragStart={pushHistory}
+              backgroundUrl={resolvedBackgroundUrl}
+              backgroundColorCss={backgroundColorCss}
             />
-          </div>
-
-          <div className="rounded-xl bg-white/3 border border-white/5 px-3 py-2.5 flex flex-col gap-1.5">
-            <div className="flex items-center gap-1.5 text-white/50">
-              <Icon icon="ph:cursor-click" width="11" />
-              <span className="text-[10px] font-medium">Controles del canvas</span>
-            </div>
-            <ul className="space-y-1">
-              <li className="flex items-start gap-1.5 text-[10px] text-white/35">
-                <span className="text-white/25 mt-px">↔</span>
-                <span>Arrastra el teléfono para girarlo en 3D</span>
-              </li>
-              <li className="flex items-start gap-1.5 text-[10px] text-white/35">
-                <span className="text-white/25 mt-px">⊕</span>
-                <span>Ctrl + scroll para hacer zoom</span>
-              </li>
-            </ul>
           </div>
         </div>
       )}

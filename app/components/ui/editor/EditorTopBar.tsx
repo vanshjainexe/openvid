@@ -5,10 +5,11 @@ import { ExportDropdown } from "../ExportDropdown";
 import { ExportImageDropdown } from "../ExportImageDropdown";
 import type { ExportQuality, ExportProgress } from "@/types";
 import type { EditorMode } from "@/types/editor-mode.types";
+import type { Tool } from "@/types/editor.types";
 import type { ImageExportFormat } from "@/types/image-project.types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/app/contexts/useAuth";
 import { useTranslations } from "next-intl";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import Image from "next/image";
@@ -35,6 +36,12 @@ interface EditorTopBarProps {
     imageExportProgress?: ImageExportProgress;
     canvasWidth?: number;
     canvasHeight?: number;
+    // Motion-aware undo/redo: when activeTool is "motion", these take over.
+    activeTool?: Tool;
+    onUndoMotion?: () => boolean;
+    onRedoMotion?: () => boolean;
+    canUndoMotion?: boolean;
+    canRedoMotion?: boolean;
 }
 
 export function EditorTopBar({
@@ -50,8 +57,19 @@ export function EditorTopBar({
     imageExportProgress,
     canvasWidth = 1920,
     canvasHeight = 1080,
+    activeTool,
+    onUndoMotion,
+    onRedoMotion,
+    canUndoMotion = false,
+    canRedoMotion = false,
 }: EditorTopBarProps) {
     const isPhotoMode = editorMode === "photo";
+    const isMotionActive = activeTool === "motion";
+    // Motion tool is the active one: route undo/redo through motion.
+    const effectiveOnUndo = isMotionActive ? onUndoMotion : onUndo;
+    const effectiveOnRedo = isMotionActive ? onRedoMotion : onRedo;
+    const effectiveCanUndo = isMotionActive ? canUndoMotion : canUndo;
+    const effectiveCanRedo = isMotionActive ? canRedoMotion : canRedo;
     const t = useTranslations("editor.topBar");
     const [showAlert, setShowAlert] = useState(false);
     const [prevStatus, setPrevStatus] = useState<string>(exportProgress.status);
@@ -134,21 +152,33 @@ export function EditorTopBar({
 
             <div className="flex items-center ml-auto">
                 <div className="flex items-center gap-2 border-r border-white/10 pr-3">
-                    <TooltipAction label={canUndo ? t("history.undo") : t("history.noUndo")}>
+                    <TooltipAction label={effectiveCanUndo ? t("history.undo") : t("history.noUndo")}>
                         <button
-                            onClick={onUndo}
-                            disabled={!canUndo}
-                            className={`transition-colors ${canUndo ? "hover:text-white text-white/70" : "opacity-30 cursor-not-allowed text-white/30"
+                            onClick={() => {
+                                if (isMotionActive) {
+                                    onUndoMotion?.();
+                                } else {
+                                    onUndo?.();
+                                }
+                            }}
+                            disabled={!effectiveCanUndo}
+                            className={`transition-colors ${effectiveCanUndo ? "hover:text-white text-white/70" : "opacity-30 cursor-not-allowed text-white/30"
                                 }`}
                         >
                             <Icon icon="mdi:undo" width="20" />
                         </button>
                     </TooltipAction>
-                    <TooltipAction label={canRedo ? t("history.redo") : t("history.noRedo")}>
+                    <TooltipAction label={effectiveCanRedo ? t("history.redo") : t("history.noRedo")}>
                         <button
-                            onClick={onRedo}
-                            disabled={!canRedo}
-                            className={`transition-colors ${canRedo ? "hover:text-white text-white/70" : "opacity-30 cursor-not-allowed text-white/60"
+                            onClick={() => {
+                                if (isMotionActive) {
+                                    onRedoMotion?.();
+                                } else {
+                                    onRedo?.();
+                                }
+                            }}
+                            disabled={!effectiveCanRedo}
+                            className={`transition-colors ${effectiveCanRedo ? "hover:text-white text-white/70" : "opacity-30 cursor-not-allowed text-white/60"
                                 }`}
                         >
                             <Icon icon="mdi:redo" width="20" />
