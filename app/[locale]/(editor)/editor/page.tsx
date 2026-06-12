@@ -10,6 +10,7 @@ import { useImageProjects } from "@/hooks/useImageProjects";
 import { getUploadedVideo, deleteUploadedVideo } from "@/lib/video-upload-cache";
 import { getUploadedImage, deleteUploadedImage } from "@/lib/image-upload-cache";
 import { useEditorMode } from "@/hooks/useEditorMode";
+import { useActiveTool } from "@/hooks/useActiveTool";
 import { useScreenCapture } from "@/hooks/useScreenCapture";
 import { useVideoExport } from "@/hooks/useVideoExport";
 import { useVideoThumbnails, type VideoThumbnail } from "@/hooks/useVideoThumbnails";
@@ -40,7 +41,7 @@ import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { TimelineSkeleton } from "@/app/components/ui/Skeleton";
 import { AudioTrimModal } from "@/app/components/ui/editor/AudioTrimModal";
 import { useAuth } from "@/app/contexts/useAuth";
-import { useMotionContext } from "@/app/contexts/MotionContext";
+import { useMockup3dContext } from "@/app/contexts/Mockup3dContext";
 import { VIDEO_Z_INDEX } from "@/lib/constants";
 import { getWallpaperUrl } from "@/lib/wallpaper.utils";
 import Image from "next/image";
@@ -75,7 +76,7 @@ export default function Editor() {
         imagePhoneOpening, setImagePhoneOpening,
         imagePhoneShadow, setImagePhoneShadow,
         imagePhoneShadowColor, setImagePhoneShadowColor,
-    } = useMotionContext();
+    } = useMockup3dContext();
 
     // Undo/Redo system - centralized state management
     const {
@@ -134,7 +135,9 @@ export default function Editor() {
     const [imageMaskConfig, setImageMaskConfig] = useState<ImageMaskConfig>(DEFAULT_MASK_CONFIG);
     const [videoMaskConfig, setVideoMaskConfig] = useState<ImageMaskConfig>(DEFAULT_MASK_CONFIG);
 
-    const [activeTool, setActiveTool] = useState<Tool>("screenshot");
+    // Active tool: lee `?m=<tool>` de la URL en mount. setActiveTool
+    // actualiza la URL con replaceState (preserva mode y otros params).
+    const [activeTool, setActiveTool] = useActiveTool();
     const [elementsTextTabTrigger, setElementsTextTabTrigger] = useState(0);
     const [backgroundTab, setBackgroundTab] = useState<BackgroundTab>("wallpaper");
     const [selectedWallpaper, setSelectedWallpaper] = useState(0);

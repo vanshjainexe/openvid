@@ -29,7 +29,6 @@ import CursorMenu from "./CursorMenu";
 import { DEFAULT_CURSOR_CONFIG } from "@/types/cursor.types";
 import { CameraMenu } from "./CameraMenu";
 
-// Lazy loads (se mantienen igual)
 const ImageRecentBackgroundGrid = lazy(() => import("../ImageRecentBackgroundGrid").then(mod => ({ default: mod.ImageRecentBackgroundGrid })));
 const BackgroundColorEditor = lazy(() => import("../BackgroundColorEditor").then(mod => ({ default: mod.BackgroundColorEditor })));
 const ZoomFragmentEditor = lazy(() => import("./ZoomFragmentEditor").then(mod => ({ default: mod.ZoomFragmentEditor })));
@@ -40,8 +39,6 @@ const MockupMenu = lazy(() => import("./MockupMenu").then(mod => ({ default: mod
 const AudioMenu = lazy(() => import("./AudioMenu").then(mod => ({ default: mod.AudioMenu })));
 const VideosMenu = lazy(() => import("./VideosMenu").then(mod => ({ default: mod.VideosMenu })));
 const HistoryMenu = lazy(() => import("./HistoryMenu").then(mod => ({ default: mod.HistoryMenu })));
-const MotionMenu = lazy(() => import("./MotionMenu").then(mod => ({ default: mod.MotionMenu })));
-const ImageMotionMenu = lazy(() => import("./ImageMotionMenu").then(mod => ({ default: mod.ImageMotionMenu })));
 
 interface ExtendedControlPanelProps extends ControlPanelProps {
     onTogglePanel?: () => void;
@@ -278,22 +275,30 @@ export function ControlPanel({
 
                 {activeTool === "mockup" && (
                     <Suspense fallback={<MockupMenuSkeleton />}>
-                        <MockupMenu mockupId={mockupId} mockupConfig={mockupConfig} onMockupChange={onMockupChange} onMockupConfigChange={onMockupConfigChange} />
+                        <MockupMenu
+                            mockupId={mockupId}
+                            mockupConfig={mockupConfig}
+                            onMockupChange={onMockupChange}
+                            onMockupConfigChange={onMockupConfigChange}
+                            backgroundTab={backgroundTab}
+                            selectedWallpaper={selectedWallpaper}
+                            selectedImageUrl={selectedImageUrl}
+                        />
                     </Suspense>
                 )}
-
+                {/* 
                 {activeTool === "motion" && (
-                    <Suspense fallback={<MockupMenuSkeleton />}>
+                    <Suspense >
                         {mediaType === "image"
                             ? <ImageMotionMenu
                                 backgroundColorCss={undefined}
                                 backgroundTab={backgroundTab}
                                 selectedWallpaper={selectedWallpaper}
                                 selectedImageUrl={selectedImageUrl}
-                              />
+                            />
                             : <MotionMenu />}
                     </Suspense>
-                )}
+                )} */}
 
                 {activeTool === "videos" && (
                     <Suspense fallback={<VideosMenuSkeleton />}>

@@ -24,7 +24,7 @@ import { EditorHoverTooltip } from "./EditorHoverTooltip";
 import DropImage from "@/components/ui/DropImage";
 import { LayersPanel } from "./LayersPanel";
 import { Icon } from "@iconify/react";
-import { useMotionContext } from "@/app/contexts/MotionContext";
+import { useMockup3dContext } from "@/app/contexts/Mockup3dContext";
 import { PHONE_H, PHONE_W } from "@/lib/phone3d.utils";
 
 export type { VideoCanvasHandle, VideoCanvasProps };
@@ -46,7 +46,6 @@ const IPhone13ProMax3DViewer = dynamic(
 
 export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(function VideoCanvas({
     activeTool: _activeTool,
-    isPlaying = false,
     mediaType = "video",
     imageUrl = null,
     imageRef,
@@ -112,7 +111,7 @@ export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(funct
         imagePhoneDevice, imagePhonePresetId,
         imagePhoneOpening,
         imagePhoneShadow, imagePhoneShadowColor
-    } = useMotionContext();
+    } = useMockup3dContext();
     // Phone shows whenever a real template is selected AND we are in video mode
     const motionActive = selectedTemplateId !== null && selectedTemplateId !== "none" && mediaType === "video";
 
@@ -128,6 +127,8 @@ export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(funct
     // at the export resolution right before capturing (fixes the pixelation
     // caused by upscaling a 595×765 canvas to 4K).
     const imagePhoneApiRef = useRef<{ renderAt: (w: number, h: number) => void } | null>(null);
+    const [activePhoneDevice, setActivePhoneDevice] = useState<string | null>(null);
+    const [phoneTransitioning, setPhoneTransitioning] = useState(false);
 
     // Model URL for the active device
     const PHONE_DEVICE_URLS: Record<string, string | undefined> = {
@@ -487,6 +488,28 @@ export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(funct
             customImageRef.current = null;
         }
     }, [imageUrlToLoad]);
+
+
+    useEffect(() => {
+        if (!imagePhoneActive) {
+            setActivePhoneDevice(null);
+            return;
+        }
+        if (imagePhoneDevice === activePhoneDevice) return;
+
+        // 1. Desmonta el viewer actual (libera contexto WebGL)
+        setPhoneTransitioning(true);
+        setActivePhoneDevice(null);
+
+        // 2. Espera un frame para que el GC libere el contexto viejo
+        //    antes de crear el nuevo
+        const id = setTimeout(() => {
+            setActivePhoneDevice(imagePhoneDevice);
+            setPhoneTransitioning(false);
+        }, 50); // 50ms es suficiente para que el contexto anterior se libere
+
+        return () => clearTimeout(id);
+    }, [imagePhoneDevice, imagePhoneActive]);
 
     // Preload canvas element images (only for image elements, not SVGs)
     useEffect(() => {
@@ -2070,7 +2093,6 @@ export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(funct
                                     }}
                                 />
 
-                                {/* ── Motion 3D Phone Overlay — INSIDE zoom layer so fragment-zoom applies ── */}
                                 {motionActive && (
                                     <div
                                         ref={phoneOverlayRef}
@@ -2082,9 +2104,9 @@ export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(funct
                                         <div
                                             style={{
                                                 transform: `scale(${motionZoomScale})`,
-                                                transformOrigin: 'center center',
-                                                transition: 'transform 0.08s ease-out',
-                                                willChange: 'transform',
+                                                transformOrigin: "center center",
+                                                transition: "transform 0.08s ease-out",
+                                                willChange: "transform",
                                             }}
                                         >
                                             <Phone3DViewer
@@ -2108,7 +2130,7 @@ export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(funct
                                     </div>
                                 )}
 
-                                {/* ── Image-mode phone overlay — inside zoom layer for correct z-index stacking ── */}
+                                {/* ── Image-mode phone overlay ── */}
                                 {mediaType === "image" && imagePhoneActive && (
                                     <div
                                         className="absolute inset-0 pointer-events-none"
@@ -2116,31 +2138,61 @@ export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(funct
                                     >
                                         <div
                                             className="absolute animate-in fade-in zoom-in-95 duration-300"
+                                            style={{
+                                                left: "50%",
+                                                top: "50%",
+                                                transform: `translate(calc(-50% + ${imagePhoneX}px), calc(-50% + ${imagePhoneY}px))`,
+                                                transformOrigin: "center center",
+                                                pointerEvents: "none",
+                                                userSelect: "none",
+                                                zIndex: 9999,
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    position: "absolute",
+                                                    left: "50%",
+                                                    transform: "translateX(-50%)",
+                                                    pointerEvents: "none",
+                                                }}
+                                            >
+                                                <EditorHoverTooltip show={isVideoHovered && mediaType === "image"} />
+                                            </div>
+                                        </div>
+
+                                        {/* Mockup layer: SÍ se escala */}
+                                        <div
+                                            className="absolute animate-in fade-in zoom-in-95 duration-300"
                                             data-image-phone-overlay
                                             onMouseEnter={() => setIsVideoHovered(true)}
                                             onMouseLeave={() => setIsVideoHovered(false)}
                                             style={{
-                                                left: '50%',
-                                                top: '50%',
+                                                left: "50%",
+                                                top: "50%",
                                                 transform: `translate(calc(-50% + ${imagePhoneX}px), calc(-50% + ${imagePhoneY}px)) scale(${imagePhoneScale})`,
-                                                transformOrigin: 'center center',
-                                                pointerEvents: 'auto',
-                                                userSelect: 'none',
-                                                filter: imagePhoneShadow > 0 && imagePhoneDevice !== "laptop"
-                                                    ? `drop-shadow(0px ${18 * imagePhoneShadow}px ${28 * imagePhoneShadow}px ${imagePhoneShadowColor})`
-                                                    : "none",
+                                                transformOrigin: "center center",
+                                                pointerEvents: "auto",
+                                                userSelect: "none",
+                                                filter:
+                                                    imagePhoneShadow > 0 && imagePhoneDevice !== "laptop"
+                                                        ? `drop-shadow(0px ${18 * imagePhoneShadow}px ${28 * imagePhoneShadow}px ${imagePhoneShadowColor})`
+                                                        : "none",
                                             }}
                                         >
-                                            <div style={{ position: "relative", zIndex: 50 }} className="top-120">
-                                                <EditorHoverTooltip show={isVideoHovered && mediaType === "image"} />
-                                            </div>
-
-                                            {imagePhoneDevice === "laptop" ? (
+                                            {phoneTransitioning || !activePhoneDevice ? (
+                                                <div
+                                                    style={{ width: PHONE_W, height: PHONE_H }}
+                                                    className="flex items-center justify-center"
+                                                >
+                                                    <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                                                </div>
+                                            ) : activePhoneDevice === "laptop" ? (
                                                 <Laptop3DViewer
-                                                    key={`laptop-${imagePhonePresetId}`}
+                                                    key="laptop"
                                                     imageUrl={imageUrl}
                                                     openingProgress={imagePhoneOpening}
                                                     imageMaskConfig={imageMaskConfig}
+                                                    cropArea={cropArea}
                                                     initialRotationX={imagePhoneRotX}
                                                     initialRotationY={imagePhoneRotY}
                                                     initialRotationZ={imagePhoneRotZ}
@@ -2148,24 +2200,36 @@ export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(funct
                                                         setImagePhoneRotX(rx);
                                                         setImagePhoneRotY(ry);
                                                     }}
-                                                    onMount={(canvas) => { imagePhoneCanvasRef.current = canvas; }}
-                                                    onApi={(api) => { imagePhoneApiRef.current = api; }}
+                                                    onMount={(canvas) => {
+                                                        imagePhoneCanvasRef.current = canvas;
+                                                    }}
+                                                    onApi={(api) => {
+                                                        imagePhoneApiRef.current = api;
+                                                    }}
                                                     scale={1}
                                                     zoom={1}
                                                     shadowIntensity={imagePhoneShadow}
                                                     shadowColor={imagePhoneShadowColor}
                                                 />
-                                            ) : imagePhoneDevice === "iphone-13-pro-max" ? (
+                                            ) : activePhoneDevice === "iphone-13-pro-max" ? (
                                                 <IPhone13ProMax3DViewer
-                                                    key={`iphone-13-pro-max-${imagePhonePresetId}`}
+                                                    key="iphone-13-pro-max"
                                                     imageUrl={imageUrl}
                                                     imageMaskConfig={imageMaskConfig}
+                                                    cropArea={cropArea}
                                                     initialRotationX={imagePhoneRotX}
                                                     initialRotationY={imagePhoneRotY}
                                                     initialRotationZ={imagePhoneRotZ}
-                                                    onRotationChange={(rx, ry) => { setImagePhoneRotX(rx); setImagePhoneRotY(ry); }}
-                                                    onMount={(canvas) => { imagePhoneCanvasRef.current = canvas; }}
-                                                    onApi={(api) => { imagePhoneApiRef.current = api; }}
+                                                    onRotationChange={(rx, ry) => {
+                                                        setImagePhoneRotX(rx);
+                                                        setImagePhoneRotY(ry);
+                                                    }}
+                                                    onMount={(canvas) => {
+                                                        imagePhoneCanvasRef.current = canvas;
+                                                    }}
+                                                    onApi={(api) => {
+                                                        imagePhoneApiRef.current = api;
+                                                    }}
                                                     scale={1}
                                                     zoom={1}
                                                     shadowIntensity={imagePhoneShadow}
@@ -2173,9 +2237,10 @@ export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(funct
                                                 />
                                             ) : (
                                                 <Phone3DViewer
-                                                    key={`${imagePhoneDevice}-${imagePhonePresetId}`}
+                                                    key={imagePhoneDevice}
                                                     imageUrl={imageUrl}
                                                     imageMaskConfig={imageMaskConfig}
+                                                    cropArea={cropArea}
                                                     initialRotationX={imagePhoneRotX}
                                                     initialRotationY={imagePhoneRotY}
                                                     initialRotationZ={imagePhoneRotZ}
@@ -2188,8 +2253,12 @@ export const VideoCanvas = forwardRef<VideoCanvasHandle, VideoCanvasProps>(funct
                                                         setImagePhoneRotX(rx);
                                                         setImagePhoneRotY(ry);
                                                     }}
-                                                    onMount={(canvas) => { imagePhoneCanvasRef.current = canvas; }}
-                                                    onApi={(api) => { imagePhoneApiRef.current = api; }}
+                                                    onMount={(canvas) => {
+                                                        imagePhoneCanvasRef.current = canvas;
+                                                    }}
+                                                    onApi={(api) => {
+                                                        imagePhoneApiRef.current = api;
+                                                    }}
                                                 />
                                             )}
                                         </div>

@@ -31,18 +31,21 @@ El **editor funciona sin backend**: todo se procesa con FFmpeg.wasm / MediaBunny
 - `VIDEO_MODE_CONFIG` y `PHOTO_MODE_CONFIG` (`types/editor-mode.types.ts`) activan/desactivan features: timeline, playerControls, videoClips, audioTracks, zoomFragments, camera, cursor, mockups, background, elements, export.
 - **Photo mode**: sube/edita imágenes con mockups, 3D previews, image masking, export como PNG/WEBP/JPG/AVIF.
 
-### Mockups (15+ componentes)
-Definidos en `lib/mockup-data.tsx` con catálogo `MOCKUPS: Mockup[]` y renderer en `MockupWrapper.tsx`:
-- **macOS** (light/dark, glass, ghost, ghost-glass, container-glass, dark-ide, ghost-ide)
-- **iPhone** (slim)
-- **S24 Ultra** (Samsung)
-- **Chrome** / **Brave** / **Browser tab glass**
-- **VSCode** (editor oscuro)
-- **Glass variants** (curve, full, ui-container, hard-shell)
-- **Mockup config**: `darkMode`, `frameColor`, `url`, `headerScale`, `headerOpacity`, `cornerRadius` — cada mockup declara qué features soporta (`MockupFeatures`).
-- **Smart radius**: `BOTTOM_ONLY_RADIUS_MOCKUPS` y `SELF_SHADOWING_MOCKUPS` en `lib/constants.ts` controlan cómo se renderiza el `border-radius` y la sombra por mockup.
-- **Perspectiva 3D** del frame vía CSS 3D transforms o canvas (`lib/perspective3d.ts` con Three.js `WebGLRenderer` offscreen).
-- **Duplicación deliberada**: cada mockup vive en `app/components/ui/editor/mockups/*.tsx` (preview React) y en `lib/mockup-canvas/*.ts` (renderer canvas para export) — **NO tocar uno sin tocar el otro**.
+### Mockups 3D (consolidados en `MockupMenu`)
+La lógica de motion/mockup 3D se consolidó en el menú `MockupMenu` (`app/components/ui/editor/MockupMenu.tsx`). Dispositivos soportados definidos en `IMAGE_DEVICE_TEMPLATES` (`types/mockup.types.ts`):
+- **`Mockup3dContext`** (`app/contexts/Mockup3dContext.tsx`) — estado global del mockup 3D: `imagePhoneActive/X/Y/Scale/RotX/RotY/RotZ/Perspective/Device/PresetId/Opening/Shadow/ShadowColor`. Hook `useMockup3dContext()`. Reemplaza al antiguo `MotionContext` (eliminado). Incluye undo/redo (`pushHistory`/`undoMotion`/`redoMotion`/`canUndoMotion`/`canRedoMotion`).
+- **3 viewers 3D** (todos reescritos a vanilla Three.js + `OrbitControls` + `RoomEnvironment` para el PBR):
+  - **`Phone3DViewer.tsx`** (~600 líneas) — vanilla Three.js. Renderiza el phone default JSON (`/models/phone-gltf.glb`) o los GLB específicos según `modelUrl`. Soporta iPhone 15 Pro Max, Samsung S25 Ultra, iPhone 13 Pro Max.
+  - **`IPhone13ProMax3DViewer.tsx`** (~464 líneas) — vanilla Three.js con `OrbitControls`. Carga `/models/apple_iphone_13_pro_max.glb` con `RoomEnvironment`. Inyecta la imagen del usuario en `Body_Wallpaper_0` (los UVs del mesh están listos, no requiere plane overlay). Maneja `webglcontextlost`/`webglcontextrestored` para evitar crash. Sync de `initialRotationX/Y` via spherical coords, `initialRotationZ` aplicado al `rootGroup.rotation.z`.
+  - **`Laptop3DViewer.tsx`** (~574 líneas) — vanilla Three.js. Carga `/models/mac-book.glb` con su sistema propio de drag (no OrbitControls) + inertia/damping via RAF loop. Pantalla customizable con `screenMaterial` y `darkPlasticMaterial`. `lid` rotación animada por `openingProgress`. **Mantener drag fluido y sync con popup Custom funcionando** (es el viewer de referencia — copia el patrón cuando crees viewers nuevos).
+- **Devices soportados**: `'phone' | 'iphone' | 'iphone-13-pro-max' | 'samsung' | 'laptop'`
+- **Sync crop**: `cropArea` (de `ImageCropperModal`) se aplica vía `applyCropToImage()` (`lib/phone3d.utils.ts`) ANTES del cover-fit. Los 3 viewers lo soportan.
+- **Sync mask**: `imageMaskConfig` (de `ImageMaskEditor`) se aplica vía `createCoverScreenCanvas()` con `globalCompositeOperation = "destination-out"` y gradientes lineales.
+- **PRESETS thumbnails** (`PREVIEW_CONFIGS` en `types/photo.types.ts`): front / top-left-angle / top-right-angle / bottom-left-angle / bottom-right-angle / isometric / tilt-up / tilt-down + custom (crosshair + sliders del popup). Cada preset mapea a `PREVIEW_TO_PHONE_OFFSET` que setea `imagePhoneRotX/Y` y remonta el viewer (vía `key={imagePhonePresetId}` en `VideoCanvas`).
+- **Popup Custom** (`PhotoEditorPlaceholder.tsx`): sliders de Scale, Rotation X/Y (crosshair), Rotation Z, Vertical translateY, Perspective. Todos se sincronizan al state global y al viewer.
+- **Posición por defecto iPhone 13 Pro Max**: `RotX=-58.23, RotY=-29.82` (seteada en `handleDeviceClick` de `MockupMenu.tsx:421-423` cuando se selecciona el dispositivo).
+- **Ctrl+scroll zoom** en phone overlay con badge indicador.
+- **`MockupMenu` lazy-loaded** en `ControlPanel.tsx` con `MockupMenuSkeleton`.
 
 ### Fondos
 - **100+ presets** categorizados en `lib/wallpaper.catalog.ts` (desktop, gradient, minimal, pattern).
@@ -71,15 +74,6 @@ Definidos en `lib/mockup-data.tsx` con catálogo `MOCKUPS: Mockup[]` y renderer 
 - **Pivot point** calculado para que el focus quede pinned al centro del canvas a `S=S_target`.
 - **3D perspective** vía `lib/perspective3d.ts` (offscreen WebGL + CanvasTexture) — aplicado SOLO al foreground (mockup), no al background.
 - **GlobalConfig** (`ZoomGlobalConfig.tsx`) lista fragmentos, **TrackItem** los muestra en la timeline, **Editor** edita focus points + toggle movement/3D.
-
-### Motion / 3D Phone
-- **`MotionContext`** (`app/contexts/MotionContext.tsx`) — estado global: `selectedTemplateId`, `motionDuration/Intensity/Style/VariantId/AnimMode/ImageUrl` + `imagePhoneActive/X/Y/Scale/RotX/RotY/Device/PresetId`.
-- **`MotionTemplate`** con `ScriptFn` que devuelve un `gsap.core.Timeline` (`types/motion.types.ts`).
-- **`Phone3DViewer.tsx`** — única master timeline (idle → entry → hold → exit → done) con `gsap.timeline()` + `gsap.delayedCall`. Carga GLTF (phone default, iPhone 15 Pro Max, Samsung S25 Ultra) desde `public/models/`.
-- **Templates registrados** en `lib/template-registry.ts` (`soloVideoTemplate`, `phoneTemplate`; otros comentados para futuro).
-- **Style presets** (`STYLE_CFG` en `lib/animation-core.ts`): `smooth` / `normal` / `cinematic` con amplitudes y easings distintos.
-- **`ImageMotionMenu.tsx`** para modo foto: position pad (X/Y), device picker, presets, image upload.
-- **Ctrl+scroll zoom** en phone overlay con badge indicador.
 
 ### Audio
 - **Multi-track** (hasta `MAX_AUDIO_TRACKS = 5`).
@@ -148,7 +142,7 @@ Definidos en `lib/mockup-data.tsx` con catálogo `MOCKUPS: Mockup[]` y renderer 
 - **Estilos**: Tailwind CSS 4 (`@tailwindcss/postcss`), `tw-animate-css`, `class-variance-authority`, `tailwind-merge`, `clsx`
 - **UI primitives**: Radix UI (`@radix-ui/react-dialog`, `react-dropdown-menu`), `radix-ui`, shadcn (`components.json`), iconos `lucide-react` y `@iconify/react`
 - **Animaciones**: Framer Motion 12, GSAP 3.15 + ScrollTrigger, Atropos (parallax), Swapy (drag-reorder)
-- **3D / gráficos**: Three.js 0.184 + `@types/three` (WebGL renderer offscreen para perspective 3D y motion phone)
+- **3D / gráficos**: Three.js 0.184 + `@types/three` (vanilla Three.js para los 3 viewers 3D: `Phone3DViewer`, `IPhone13ProMax3DViewer`, `Laptop3DViewer`). Usa `OrbitControls` y `RoomEnvironment` directamente desde `three/examples/jsm/...`. **No usa** `@react-three/fiber` ni `@react-three/drei` (esos paquetes siguen instalados pero no se importan en el editor).
 - **Video / media**:
   - `@ffmpeg/ffmpeg` + `@ffmpeg/core` + `@ffmpeg/util` (servidos desde `public/ffmpeg/`)
   - `mediabunny` (pipeline de video optimizado MP4/WebM)
@@ -183,14 +177,13 @@ openvidshot/
 │   │   ├── seo/                         # StructuredData (JSON-LD: WebApp + Organization)
 │   │   └── ui/
 │   │       ├── editor/                  # Núcleo del editor (ver §5)
-│   │       │   ├── mockups/             # 18+ componentes React de mockups
-│   │       │   └── templates-motion/    # Plantillas de animación (Phone)
+│   │       │   └── mockups/             # 18+ componentes React de mockups
 │   │       ├── home/                    # Landing (Hero, Demo, BannerCTA, RecordingSteps, ...)
 │   │       ├── floating/                # FloatingCameraPreview, RecordingOverlay, ExportOverlay
 │   │       └── ...                      # AspectRatioSelect, BackgroundColorEditor, ExportDropdown, PhotoPicker, RecordingSetup, SidebarTool, Skeleton, SliderControl, TabButton, TemplateEditorShell, WalpaperSections
 │   ├── config/env.ts                    # ENV tipado (unsplash, pexels, pixabay keys)
 │   ├── contexts/       
-│   │   ├── MotionContext.tsx                # Estado global de motion/3D phone
+│   │   ├── Mockup3dContext.tsx              # Estado global del mockup 3D (reemplaza MotionContext)
 │   │   ├── RecordingContext.tsx             # Provider de grabación + Alt+S/Alt+D shortcuts
 │   │   ├── useAuth.tsx                      # Sesión Supabase + AuthProvider
 │   ├── [locale]/
@@ -218,11 +211,11 @@ openvidshot/
 │   ├── useVideoUpload.ts / useVideoThumbnails.ts / useVideoExport.ts
 │   ├── useImageExport.ts / useImageProjects.ts
 │   ├── useEditorMode.ts                 # Lee `?mode=` de URL
+│   ├── useActiveTool.ts                 # Lee `?m=<tool>` de URL (sincroniza sidebar/ControlPanel con query params)
 │   ├── useUndoRedo.ts                   # History stack (max 50)
 │   ├── useDebounce.ts
 │
 ├── lib/                                 # Lógica pura, utils y catálogos
-│   ├── animation-core.ts                # NRX/NRY neutral pose, STYLE_CFG, idleScript
 │   ├── canvas-elements.config.ts        # SVG_CATEGORIES, IMAGE_CATEGORIES, pinned items
 │   ├── canvas.utils.ts                  # drawRoundedRect, calculateScaledPadding, applyCanvasBackground,
 │   │                                    # getAspectRatioStyle/Number/MaxWidth, calculateSmoothZoom
@@ -238,7 +231,7 @@ openvidshot/
 │   ├── mockup-previews.tsx              # React preview components (None/Macos/Brave/Chrome/...)
 │   ├── perspective3d.ts                 # Three.js offscreen WebGL renderer (singleton)
 │   ├── photo-providers.ts               # Unsplash/Pexels/Pixabay config
-│   ├── template-registry.ts             # TEMPLATES: soloVideoTemplate + phoneTemplate
+│   ├── template-registry.ts             # ELIMINADO — los motion templates se consolidaron en MockupMenu
 │   ├── thumbnail-cache.ts               # Video thumbnails persistence
 │   ├── video-cache-utils.ts             # Helpers
 │   ├── image-projects-cache.ts          # IndexedDB wrapper para ImageProject (modo photo)
@@ -267,7 +260,7 @@ openvidshot/
 │   ├── layers.types.ts                  # LayersPanelProps, ContextMenuProps
 │   ├── mockup.types.ts                  # MockupConfig (darkMode/frameColor/url/headerScale/...),
 │   │                                    # MockupFeatures, MockupCategory, DEFAULT_MOCKUP_CONFIG
-│   ├── motion.types.ts                  # MotionTemplate, ScriptFn, AnimMode, MotionStyle, AV
+│   ├── motion.types.ts                  # ELIMINADO — la lógica de motion se consolidó en MockupMenu/Mockup3dContext
 │   ├── photo.types.ts                   # Preview3DConfig, ImageMaskConfig, PREVIEW_CONFIGS,
 │   │                                    # PREVIEW_TO_PHONE_OFFSET (front/top-left-angle/...)
 │   ├── player-control.types.ts          # PlayerControlsProps, MIN_ZOOM, MAX_ZOOM, ZOOM_STEP
@@ -295,7 +288,7 @@ openvidshot/
 │   │   ├── mockups/ (bg-browser, bg-ide, bg-mobile)
 │   │   ├── pages/ (hero, demos, login, qr, posters, openvid)
 │   │   └── scroll/ (logos sponsors/decoradores)
-│   ├── models/                          # glTF/GLB: iphone-15-pro-max.glb, samsung-galaxy-s25-ultra.glb, phone-gltf.json
+│   ├── models/                          # glTF/GLB: iphone-15-pro-max.glb, samsung-galaxy-s25-ultra.glb, apple_iphone_13_pro_max.glb, phone-gltf.json
 │   ├── svg/                             # logo, mockups, cursores, openvid
 │   ├── videos/                          # Previews de features (audio, mockup, zoom, ...)
 │   ├── elements/images/                 # assets, overlays, stickers
@@ -327,32 +320,34 @@ openvidshot/
 
 | Componente | Rol |
 |---|---|
-| `VideoCanvas.tsx` (~2400 líneas) | **Canvas principal**. Maneja `<video>` + `<canvas>` de export + `CanvasElementsLayer` + `MockupWrapper` + `Phone3DViewer` (dynamic, ssr:false). Expone `VideoCanvasHandle` (getExportCanvas/drawFrame/getPreviewContainer/clearAllSelection/restoreSelectionState) vía `forwardRef`. Lee `MotionContext` para phone overlay. Implementa `drawFrame` que renderiza a canvas con zoom 3D, mockup frame, video mask, canvas elements, camera overlay, motion phone bezel. Drag/rotate handles para video transform. |
+| `VideoCanvas.tsx` (~2400 líneas) | **Canvas principal**. Maneja `<video>` + `<canvas>` de export + `CanvasElementsLayer` + `MockupWrapper` + `Phone3DViewer` (dynamic, ssr:false). Expone `VideoCanvasHandle` (getExportCanvas/drawFrame/getPreviewContainer/clearAllSelection/restoreSelectionState) vía `forwardRef`. Lee `Mockup3dContext` para phone overlay. Implementa `drawFrame` que renderiza a canvas con zoom 3D, mockup frame, video mask, canvas elements, camera overlay, motion phone bezel. Drag/rotate handles para video transform. Pasa `cropArea` a los 3 viewers 3D para sincronizar el crop con el `ImageCropperModal`. |
 | `CanvasElementsLayer.tsx` | Capa de elementos (shapes, text, SVG, imágenes) sobre el canvas; inline text editor Figma-style. |
 | `Timeline.tsx` | Timeline con trim, video clips, zoom fragments, audio tracks. Pan via framer-motion, ghosts en drag. |
 | `PlayerControls.tsx` | Transport: play/pause, skip ±5s, aspect ratio, crop, zoom level, fullscreen, video mask editor. |
 | `EditorTopBar.tsx` | Logo, undo/redo, export dropdown (video/image), user menu, alert de export error. |
-| `ToolsSidebar.tsx` | Sidebar vertical con tools: screenshot, mockup, motion, zoom, audio, videos, camera, cursor, elements, history. |
-| `MobileToolsMenu.tsx` | Menú de tools en mobile (Dialog bottom sheet). |
+| `ToolsSidebar.tsx` | Sidebar vertical con tools: screenshot, mockup, zoom, audio, videos, camera, cursor, elements, history. (Motion tool removido/consolidado en `MockupMenu`.) |
+| `MobileToolsMenu.tsx` | Menú de tools en mobile (Dialog bottom sheet). Consume `activeTool` del editor (sincronizado con `?m=` via `useActiveTool`). |
 | `MobileControlPanel.tsx` | ControlPanel en mobile via Dialog bottom sheet. |
-| `ControlPanel.tsx` | Panel reactivo principal (lazy-loaded, muchos sub-skeletons). Cambia contenido según `activeTool`. |
+| `ControlPanel.tsx` | Panel reactivo principal (lazy-loaded, muchos sub-skeletons). Cambia contenido según `activeTool`. El bloque `motion` está comentado — su lógica se movió a `MockupMenu`. |
 | `LabelSidebar.tsx` | Etiquetas laterales (Video/Zoom/Audio) en el timeline. |
-| `MockupMenu.tsx` + `mockups/*` | Selector de mockups por categoría + renderers. |
-| `MotionMenu.tsx` + `ImageMotionMenu.tsx` + `templates-motion/Phone.tsx` | Plantillas motion (phone) para video e image mode. |
+| `MockupMenu.tsx` + `mockups/*` | **Consolida** device picker (phone/iphone/iphone-13-pro-max/samsung/laptop), presets thumbnails (front/top-left/etc), popup Custom (scale/rotX/Y/Z/translateY/perspective), crop sync. Lee `Mockup3dContext` y `useActiveTool`. Lazy-loaded con `MockupMenuSkeleton`. |
+| `MotionMenu.tsx` | Casi vacío (placeholder). `ImageMotionMenu.tsx` eliminado. Toda la lógica se movió a `MockupMenu`. |
 | `CameraMenu.tsx` | Configuración de camera overlay (shape, corner, size, mirror). |
-| `Phone3DViewer.tsx` (~836 líneas) | Three.js viewer para el phone overlay con GSAP master timeline. |
+| `Phone3DViewer.tsx` | **Vanilla Three.js + OrbitControls + RoomEnvironment**. Carga GLTF (`/models/iphone-15-pro-max.glb`, `/models/samsung-galaxy-s25-ultra.glb`, etc) según `modelUrl`. Inyecta imagen del usuario en el screen plane vía `createCoverScreenCanvas` con `applyCropToImage` + `imageMaskConfig`. Soporta `onRotationChange` desde el `end` de OrbitControls. Maneja `webglcontextlost`/`webglcontextrestored`. |
+| `IPhone13ProMax3DViewer.tsx` | **Vanilla Three.js** para el iPhone 13 Pro Max. Carga `/models/apple_iphone_13_pro_max.glb`. Inyecta la imagen directamente en `Body_Wallpaper_0` (los UVs del mesh están listos, no requiere plane overlay). Mismos OrbitControls + RoomEnvironment + manejo de context lost. |
+| `Laptop3DViewer.tsx` | **Vanilla Three.js** con su propio sistema de drag (NO usa OrbitControls) + inertia/damping via RAF loop. Carga `/models/mac-book.glb`. Pantalla customizable con `screenMaterial`. `lid` rotación animada por `openingProgress`. **Viewer de referencia** — copiar este patrón al crear viewers nuevos. |
 | `FloatingCameraPreview.tsx` | Preview flotante arrastrable de la cámara (sidebar). |
 | `ZoomFragmentEditor.tsx` / `ZoomFragmentTrackItem.tsx` / `ZoomGlobalConfig.tsx` | Editor de focus point + track item + lista global. |
 | `AudioMenu.tsx` / `AudioFragmentTrackItem.tsx` / `AudioTrimModal.tsx` | Multi-track de audio (max 5). |
 | `VideoClipTrackItem.tsx` / `VideoCropperModal.tsx` / `VideosMenu.tsx` | Clips de video (multi-clip) + cropper + library. |
-| `ImageCropperModal.tsx` / `ImageMaskEditor.tsx` / `GetMediaMaskStyles.tsx` | Crop + mask + helpers. |
+| `ImageCropperModal.tsx` / `ImageMaskEditor.tsx` / `GetMediaMaskStyles.tsx` | Crop + mask + helpers. `cropArea` se pasa a `VideoCanvas` y luego a los 3 viewers 3D. |
 | `ElementsMenu.tsx` (3 tabs: text/elements/uploads) | Shapes, SVG, imágenes, texto. |
 | `CursorMenu.tsx` | Configuración del cursor (style, color, size, click effect). |
 | `LayersPanel.tsx` (~927 líneas) | Panel de capas con drag-reorder, lock, hide, group/ungroup, multi-select. |
 | `HistoryMenu.tsx` | Lista de proyectos de imagen (modo photo). |
 | `ContextMenu.tsx` | Menú contextual de las capas (bring to front, send to back, group, delete). |
 | `EditorHoverTooltip.tsx` | Tooltip on-canvas con shortcuts (Ctrl+Scroll zoom, Ctrl+V paste). |
-| `PhotoEditorPlaceholder.tsx` | Placeholder del editor de foto (debajo del canvas en photo mode). |
+| `PhotoEditorPlaceholder.tsx` | Placeholder del editor de foto (debajo del canvas en photo mode). Usa `useMockup3dContext` y contiene el `ImageMaskEditor` + el popup Custom del `MockupMenu`. |
 | `PlaceholderEditor.tsx` | Placeholder inicial antes de subir archivo. |
 | `Skeleton.tsx` | Skeletons de carga para cada menu. |
 | `CanvasElementsLayer.tsx` | Capa DOM de elementos con text editor inline. |
@@ -363,13 +358,14 @@ El componente `Editor` raíz coordina todo el estado y los hooks del editor:
 
 **Estados principales** (todos como `useState`):
 - Editor mode: `useEditorMode` lee `?mode=` de URL
+- Active tool: `useActiveTool` lee `?m=<tool>` de URL (deep links, mobile share)
 - Auth: `useAuth`
 - Undo/Redo: `useUndoRedo<EditorState>` (centralizado, sincroniza con `editorState` en `useEffect`)
 - Image state: `imageUrl`, `imageRef`, `imageExportProgress`
 - Capture: `useScreenCapture`
 - Image projects: `useImageProjects` (IndexedDB)
 - 3D preview: `imageTransform`, `apply3DToBackground`
-- **UI state**: `activeTool`, `backgroundTab`, `selectedWallpaper`, `backgroundBlur`, `padding`, `roundedCorners`, `shadows`, `isControlPanelOpen`
+- **UI state**: `activeTool` (sincronizado con URL via `useActiveTool`), `backgroundTab`, `selectedWallpaper`, `backgroundBlur`, `padding`, `roundedCorners`, `shadows`, `isControlPanelOpen`
 - **Video transform**: `videoTransform` (rotation, translateX, translateY)
 - **Uploaded images**: array + LocalStorage sync
 - **Background color/gradient**: `backgroundColorConfig`
@@ -438,7 +434,7 @@ El componente `Editor` raíz coordina todo el estado y los hooks del editor:
 
 ### 5.3 Contexts y providers
 
-- **`MotionContext`** (`app/contexts/MotionContext.tsx`) — state global de motion templates, intensity, style, animMode, image phone X/Y/scale/rotation, device. Hook `useMotionContext`.
+- **`Mockup3dContext`** (`app/contexts/Mockup3dContext.tsx`) — state global del mockup 3D: `imagePhoneActive/X/Y/Scale/RotX/RotY/RotZ/Perspective/Device/PresetId/Opening/Shadow/ShadowColor` + undo/redo (`pushHistory`/`undoMotion`/`redoMotion`/`canUndoMotion`/`canRedoMotion`). Hook `useMockup3dContext()`. Reemplaza al antiguo `MotionContext` (eliminado).
 - **`AuthProvider`** (`app/contexts/useAuth.tsx`) — sesión Supabase + user profile.
 - **`RecordingProvider`** (`app/contexts/RecordingContext.tsx`) — wrapper de `useScreenRecording` con shortcuts Alt+S/Alt+D.
 - **`TooltipProvider`** (`components/ui/tooltip.tsx`) — Radix tooltip con `delayDuration={200}`.
@@ -448,9 +444,9 @@ Orden de providers en `app/[locale]/(editor)/layout.tsx`:
 ```jsx
 <AuthProvider>
   <RecordingProvider>
-    <MotionProvider>
+    <Mockup3dProvider>
       <div>{children}</div>
-    </MotionProvider>
+    </Mockup3dProvider>
     <RecordingOverlay />
   </RecordingProvider>
 </AuthProvider>
@@ -460,6 +456,7 @@ Orden de providers en `app/[locale]/(editor)/layout.tsx`:
 
 - **`useUndoRedo<T>(initialState)`** — history stack (past/present/future) con `MAX_HISTORY_SIZE=50`. `setState` con `skipHistory` flag.
 - **`useEditorMode`** — lee `?mode=` de URL, expone `isVideoMode`/`isPhotoMode`/`setMode`.
+- **`useActiveTool`** (`hooks/useActiveTool.ts`) — lee `?m=<tool>` de la URL y expone `[activeTool, setActiveTool]`. Usa `useSearchParams` + `useRouter` (Next.js) para que el state se mantenga sincronizado con la URL en AMBAS direcciones. Permite deep links tipo `/es/editor?mode=video&m=mockup` que cargan el menú activo directamente. Hook estilo `useState` para drop-in replacement.
 - **`useVideoExport(videoRef, canvasRef)`** — pipeline de export con MediaBunny + FFmpeg.wasm. Maneja cancellation token.
 - **`useVideoThumbnails(url, duration, options)`** — genera thumbnails cada 0.1s, calidad "low"/"high".
 - **`useImageProjects`** — CRUD de proyectos de imagen en IndexedDB (auto-save 3s).
@@ -524,7 +521,7 @@ pnpm lint / format
 - **Idioma por defecto**: `es` (ver `i18n.ts`). Todos los textos visibles usan `useTranslations("namespace")` de `next-intl`.
 - **Refs vs State**: el editor usa muchos `useRef` para evitar stale closures en `requestAnimationFrame`, drag handlers, y event listeners globales.
 - **i18n keys**: están en `messages/{es,en,ru}.json` — agregar clave en los 3 al añadir un texto nuevo.
-- **Animaciones GSAP**: se registran plugins (`ScrollTrigger` en home, `GLTFLoader` en Phone3DViewer) — limpiar con `gsap.matchMedia()` o `killTweensOf`.
+- **Animaciones GSAP**: se registran plugins (`ScrollTrigger` en home) — limpiar con `gsap.matchMedia()` o `killTweensOf`. Los viewers 3D NO usan GSAP (todo es vanilla Three.js con `OrbitControls` o drag custom).
 - **Three.js singleton**: `lib/perspective3d.ts` mantiene un único `WebGLRenderer`/`Scene`/`Camera` reutilizado entre renders; llamar `disposePerspective3D()` en cleanup.
 - **Framer Motion**: usado para AnimatePresence (panel open/close, export overlay, hover).
 - **Atropos**: solo en `EditorPreview.tsx` (home) para parallax 3D.
@@ -537,11 +534,6 @@ pnpm lint / format
 4. Registrar en `MOCKUPS` (`lib/mockup-data.tsx`) con `id`, `name`, `category`, `features`, `defaultConfig`, `preview`.
 5. Agregar a `BOTTOM_ONLY_RADIUS_MOCKUPS` o `SELF_SHADOWING_MOCKUPS` en `lib/constants.ts` si necesita tratamiento especial de border-radius/shadow.
 6. Verificar que `MockupWrapper.tsx` lo importe.
-
-### Estructura de un motion template nuevo
-1. Definir `MotionTemplate` en `app/components/ui/editor/templates-motion/{name}.tsx` con `script: ScriptFn` (función que devuelve `gsap.core.Timeline`).
-2. Registrar en `lib/template-registry.ts` (descomentar línea correspondiente).
-3. Si tiene panel de edición, exponer `EditorPanel` en el template.
 
 ### Estructura de un nuevo tool en el sidebar
 1. Agregar el tool al union type `Tool` en `types/editor.types.ts`.

@@ -1,662 +1,596 @@
 "use client";
 
-/**
- * Phone3DViewer — R3F + drei + OrbitControls edition
- *
- * Key architectural fixes in this version:
- *
- *  A. rootRef / cameraRef are now created INSIDE each scene component
- *     (not passed down from Phone3DViewer). This means every Canvas remount
- *     gets completely fresh refs — no stale WebGL objects from a previous
- *     context leak through.
- *
- *  B. Canvas key=modelUrl forces a full remount on device switch, which is
- *     the cleanest way to get a fresh WebGL context. Combined with (A), this
- *     eliminates the white-flash-then-disappear bug on first load.
- *
- *  C. Scale factor calculation uses the camera frustum correctly.
- *
- *  D. Orbit initial position is applied via Promise.resolve() microtask
- *     after root.add(group) — OrbitControls is mounted by R3F by then.
- */
-
-import { Canvas, useThree } from "@react-three/fiber";
-import {
-  PerspectiveCamera,
-  useGLTF,
-  Environment,
-  OrbitControls,
-} from "@react-three/drei";
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import {
-  PHONE_W,
-  PHONE_H,
-  deviceConfigs,
-  getDeviceFromModelUrl,
-  createCoverScreenCanvas,
-  loadGltfGroup,
-  cloneGroup,
-  type ImageMaskConfigLike,
-  parseShadowColor,
+    PHONE_W,
+    PHONE_H,
+    deviceConfigs,
+    getDeviceFromModelUrl,
+    createCoverScreenCanvas,
+    applyCropToImage,
+    loadGltfGroup,
+    cloneGroup,
+    type ImageMaskConfigLike,
+    parseShadowColor,
 } from "@/lib/phone3d.utils";
 
 export interface Phone3DApi {
-  renderAt: (width: number, height: number) => void;
+    renderAt: (width: number, height: number) => void;
 }
 
 interface Props {
-  imageUrl?: string | null;
-  imageMaskConfig?: ImageMaskConfigLike | null;
-  initialRotationX?: number;
-  initialRotationY?: number;
-  initialRotationZ?: number;
-  onRotationChange?: (rx: number, ry: number) => void;
-  onMount?: (canvas: HTMLCanvasElement) => void;
-  onApi?: (api: Phone3DApi | null) => void;
-  modelUrl?: string;
-  scale?: number;
-  zoom?: number;
-  shadowIntensity?: number;
-  shadowColor?: string;
+    imageUrl?: string | null;
+    imageMaskConfig?: ImageMaskConfigLike | null;
+    cropArea?: { x: number; y: number; width: number; height: number } | null;
+    initialRotationX?: number;
+    initialRotationY?: number;
+    initialRotationZ?: number;
+    onRotationChange?: (rx: number, ry: number) => void;
+    onMount?: (canvas: HTMLCanvasElement) => void;
+    onApi?: (api: Phone3DApi | null) => void;
+    modelUrl?: string;
+    scale?: number;
+    zoom?: number;
+    shadowIntensity?: number;
+    shadowColor?: string;
 }
 
+// ─── Constantes y Helpers ─────────────────────────────────────────────────────
 const DEFAULT_CAM_Z = 1.5;
+const DEG = Math.PI / 180;
 
-function SharedLights() {
-  return (
-    <>
-      <Environment preset="city" background={false} />
-      <ambientLight intensity={0.3} />
-      <directionalLight position={[3, 6, 5]} intensity={0.6} />
-      <directionalLight position={[-4, -2, 3]} intensity={0.25} color="#c8d8ff" />
-      <directionalLight position={[0, -5, 5]} intensity={0.35} />
-    </>
-  );
+// Caché global para modelos GLTF específicos (evita múltiples descargas)
+const specificGltfCache = new Map<string, Promise<THREE.Group>>();
+function loadSpecificGltf(url: string): Promise<THREE.Group> {
+    if (!specificGltfCache.has(url)) {
+        specificGltfCache.set(
+            url,
+            new Promise((resolve, reject) => {
+                new GLTFLoader().load(
+                    url,
+                    (gltf) => resolve(gltf.scene),
+                    undefined,
+                    reject
+                );
+            })
+        );
+    }
+    return specificGltfCache.get(url)!;
 }
 
 function applyMetalMaterial(m: THREE.MeshStandardMaterial, matName: string): void {
-  if (matName.includes("Body")) { m.color.set(0x787878); m.roughness = 0.18; m.metalness = 0.85; m.envMapIntensity = 1.4; }
-  if (matName.includes("Bezel")) { m.color.set(0x909090); m.roughness = 0.12; m.metalness = 0.92; m.envMapIntensity = 1.6; }
-  if (matName.includes("Buttons")) { m.color.set(0x999999); m.roughness = 0.15; m.metalness = 0.88; m.envMapIntensity = 1.5; }
-  if (matName.includes("Lenses")) { m.color.set(0x060608); m.roughness = 0.04; m.metalness = 0.70; m.envMapIntensity = 2.0; }
+    if (matName.includes("Body")) { m.color.set(0x787878); m.roughness = 0.18; m.metalness = 0.85; m.envMapIntensity = 1.4; }
+    if (matName.includes("Bezel")) { m.color.set(0x909090); m.roughness = 0.12; m.metalness = 0.92; m.envMapIntensity = 1.6; }
+    if (matName.includes("Buttons")) { m.color.set(0x999999); m.roughness = 0.15; m.metalness = 0.88; m.envMapIntensity = 1.5; }
+    if (matName.includes("Lenses")) { m.color.set(0x060608); m.roughness = 0.04; m.metalness = 0.70; m.envMapIntensity = 2.0; }
 }
 
-interface SceneProps {
-  imageUrl: string | null;
-  imageMaskConfig: ImageMaskConfigLike | null;
-  initialRotationX: number;
-  initialRotationY: number;
-  initialRotationZ: number;
-  zoom: number;
-  onRotationChange?: (rx: number, ry: number) => void;
-  onApi?: (api: Phone3DApi | null) => void;
-  modelUrl?: string;
-  onLoaded?: () => void;
+function applyCameraPosition(
+    camera: THREE.PerspectiveCamera,
+    controls: OrbitControls,
+    rx: number,
+    ry: number,
+    zoom: number
+) {
+    const radius = DEFAULT_CAM_Z / zoom;
+    const phi = Math.PI / 2 - rx * DEG;
+    const theta = ry * DEG;
+    camera.position.setFromSphericalCoords(radius, phi, theta);
+    controls.update();
 }
 
-// ─── GltfModelScene — iphone 15 / samsung / iphone-13 ────────────────────────
-function GltfModelScene({
-  imageUrl,
-  imageMaskConfig,
-  initialRotationX,
-  initialRotationY,
-  initialRotationZ,
-  zoom,
-  onRotationChange,
-  onApi,
-  modelUrl,
-  onLoaded,
-}: SceneProps) {
-  const rootRef = useRef<THREE.Group>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const orbitRef = useRef<any>(null);
-  const screenMatRef = useRef<THREE.MeshBasicMaterial | null>(null);
-  const lastLoadedUrlRef = useRef<string | null>(null);
-  const setupDoneRef = useRef(false);
-
-  const { gl, scene, camera } = useThree();
-  const device = getDeviceFromModelUrl(modelUrl);
-  const deviceConfig = deviceConfigs[device];
-  const gltf = useGLTF(modelUrl!) as { scene: THREE.Group };
-
-  // Stable refs so callbacks always see current values
-  const imageUrlRef = useRef(imageUrl);
-  const imageMaskConfigRef = useRef(imageMaskConfig);
-  useEffect(() => { imageUrlRef.current = imageUrl; }, [imageUrl]);
-  useEffect(() => { imageMaskConfigRef.current = imageMaskConfig; }, [imageMaskConfig]);
-
-  const applyTexture = useCallback((mat: THREE.MeshBasicMaterial, url: string) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      // requestAnimationFrame difiere la creación del CanvasTexture
-      // al próximo frame para no bloquear el render actual ni
-      // forzar una subida síncrona de píxeles a la GPU.
-      requestAnimationFrame(() => {
-        const TARGET_W = 2048;
-        const TARGET_H = Math.round(TARGET_W / deviceConfig.aspectRatio);
-        const cornerRadius = Math.round(TARGET_W * deviceConfig.cornerRadiusFactor);
-        const cover = createCoverScreenCanvas(img, TARGET_W, TARGET_H, cornerRadius, imageMaskConfigRef.current);
-        if (mat.map) { mat.map.dispose(); mat.map = null; }
-        const tex = new THREE.CanvasTexture(cover);
-        tex.flipY = true;
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.generateMipmaps = true;
-        tex.minFilter = THREE.LinearMipmapLinearFilter;
-        tex.magFilter = THREE.LinearFilter;
-        tex.wrapS = THREE.ClampToEdgeWrapping;
-        tex.wrapT = THREE.ClampToEdgeWrapping;
-        tex.anisotropy = gl.capabilities.getMaxAnisotropy();
-        mat.map = tex;
-        mat.color.set(0xffffff);
-        mat.needsUpdate = true;
-        lastLoadedUrlRef.current = url;
-      });
-    };
-    img.onerror = () => {
-      // Imagen inválida: libera cualquier textura previa y deja el
-      // material con su color base (gris oscuro) en lugar del quad
-      // blanco del navegador.
-      if (mat.map) { mat.map.dispose(); mat.map = null; mat.needsUpdate = true; }
-      mat.color.set(0x111111);
-      lastLoadedUrlRef.current = url; // evita reintento
-    };
-    img.src = url;
-  }, [deviceConfig, gl]);
-
-  // One-time setup per Canvas mount
-  useEffect(() => {
-    if (setupDoneRef.current) return;
-    setupDoneRef.current = true;
-
-    const root = rootRef.current;
-    if (!root) return;
-
-    const group = gltf.scene.clone(true);
-    const camZ = DEFAULT_CAM_Z / zoom;
-    const box = new THREE.Box3().setFromObject(group);
-    const center = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    const halfH = camZ * Math.tan((40 / 2) * (Math.PI / 180));
-    const sf = (halfH * 2 * 0.8) / size.y;
-    group.scale.setScalar(sf);
-    group.position.copy(center).negate().multiplyScalar(sf);
-    group.rotation.z = initialRotationZ * (Math.PI / 180);
-
-    const planeH = 4.3 * deviceConfig.screenHeightFactor;
-    const planeW = planeH * deviceConfig.aspectRatio;
-    const mat = new THREE.MeshBasicMaterial({
-      color: 0x111111, side: THREE.FrontSide,
-      transparent: true, depthTest: false, depthWrite: false,
-    });
-    const plane = new THREE.Mesh(new THREE.PlaneGeometry(planeW, planeH), mat);
-    plane.position.set(deviceConfig.screenOffset.x, deviceConfig.screenOffset.y, deviceConfig.screenOffset.z);
-    plane.renderOrder = 10;
-    group.add(plane);
-    screenMatRef.current = mat;
-    root.add(group);
-
-    if (imageUrlRef.current) {
-      applyTexture(mat, imageUrlRef.current);
-    }
-
-    onLoaded?.();
-
-    // Microtask: OrbitControls is guaranteed mounted by R3F before this runs
-    Promise.resolve().then(() => {
-      const orbit = orbitRef.current;
-      if (!orbit) return;
-      orbit.object.position.setFromSphericalCoords(
-        DEFAULT_CAM_Z / zoom,
-        Math.PI / 2 - initialRotationX * (Math.PI / 180),
-        initialRotationY * (Math.PI / 180),
-      );
-      orbit.update();
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Texture sync on prop change
-  useEffect(() => {
-    const mat = screenMatRef.current;
-    if (!mat) return;
-    if (!imageUrl) {
-      if (mat.map) { mat.map.dispose(); mat.map = null; mat.needsUpdate = true; }
-      lastLoadedUrlRef.current = null;
-      return;
-    }
-    if (lastLoadedUrlRef.current === imageUrl) return;
-    applyTexture(mat, imageUrl);
-  }, [imageUrl, imageMaskConfig, applyTexture]);
-
-  // Orbit sync on prop change
-  useEffect(() => {
-    const orbit = orbitRef.current;
-    if (!orbit) return;
-    orbit.object.position.setFromSphericalCoords(
-      DEFAULT_CAM_Z / zoom,
-      Math.PI / 2 - initialRotationX * (Math.PI / 180),
-      initialRotationY * (Math.PI / 180),
-    );
-    orbit.update();
-  }, [initialRotationX, initialRotationY, zoom]);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root || root.children.length === 0) return;
-    (root.children[0] as THREE.Group).rotation.z = initialRotationZ * (Math.PI / 180);
-  }, [initialRotationZ]);
-
-  useEffect(() => {
-    const api: Phone3DApi = {
-      renderAt: (width, height) => {
-        const cam = camera as THREE.PerspectiveCamera;
-        const oldAspect = cam.aspect;
-        gl.setSize(width, height, false);
-        cam.aspect = width / height;
-        cam.updateProjectionMatrix();
-        gl.clear();
-        gl.render(scene, cam);
-        gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3));
-        gl.setSize(PHONE_W, PHONE_H, false);
-        cam.aspect = oldAspect;
-        cam.updateProjectionMatrix();
-      },
-    };
-    onApi?.(api);
-    return () => onApi?.(null);
-  }, [onApi, gl, scene, camera]);
-
-  return (
-    <>
-      <PerspectiveCamera makeDefault fov={40} near={0.01} far={100} position={[0, 0, DEFAULT_CAM_Z / zoom]} />
-      <OrbitControls
-        ref={orbitRef}
-        enableZoom={false}
-        enablePan={false}
-        enableDamping
-        dampingFactor={0.08}
-        onEnd={() => {
-          const orbit = orbitRef.current;
-          if (!orbit || !onRotationChange) return;
-          onRotationChange(
-            (Math.PI / 2 - orbit.getPolarAngle()) * (180 / Math.PI),
-            orbit.getAzimuthalAngle() * (180 / Math.PI),
-          );
-        }}
-      />
-      <SharedLights />
-      <group ref={rootRef} dispose={null} />
-    </>
-  );
+// ─── Renderizador Interno Vanilla Three.js ────────────────────────────────────
+interface VanillaRendererProps extends Omit<Props, "scale" | "shadowIntensity" | "shadowColor"> {
+    onLoaded: () => void;
+    onContextLost: () => void;
 }
 
-// ─── DefaultPhoneModelScene — JSON phone ──────────────────────────────────────
-function DefaultPhoneModelScene({
-  imageUrl,
-  imageMaskConfig,
-  initialRotationX,
-  initialRotationY,
-  initialRotationZ,
-  zoom,
-  onRotationChange,
-  onApi,
-  onLoaded,
-}: Omit<SceneProps, "modelUrl">) {
-  const rootRef = useRef<THREE.Group>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const orbitRef = useRef<any>(null);
-  const screenMatRef = useRef<THREE.MeshBasicMaterial | null>(null);
-  const screenAspectRef = useRef<number>(0.459);
-  const lastLoadedUrlRef = useRef<string | null>(null);
-  const setupDoneRef = useRef(false);
-
-  const { gl, scene, camera } = useThree();
-
-  const imageUrlRef = useRef(imageUrl);
-  const imageMaskConfigRef = useRef(imageMaskConfig);
-  useEffect(() => { imageUrlRef.current = imageUrl; }, [imageUrl]);
-  useEffect(() => { imageMaskConfigRef.current = imageMaskConfig; }, [imageMaskConfig]);
-
-  const applyTexture = useCallback((mat: THREE.MeshBasicMaterial, url: string) => {
-    const aspect = screenAspectRef.current;
-    const TARGET_W = PHONE_W * 4;
-    const TARGET_H = Math.round(TARGET_W / aspect);
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      // requestAnimationFrame difiere la creación del CanvasTexture
-      // al próximo frame para no saturar la GPU.
-      requestAnimationFrame(() => {
-        const cover = createCoverScreenCanvas(img, TARGET_W, TARGET_H, 0, imageMaskConfigRef.current);
-        if (mat.map) { mat.map.dispose(); mat.map = null; }
-        const tex = new THREE.CanvasTexture(cover);
-        tex.flipY = false;
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.generateMipmaps = true;
-        tex.minFilter = THREE.LinearMipmapLinearFilter;
-        tex.magFilter = THREE.LinearFilter;
-        tex.wrapS = THREE.ClampToEdgeWrapping;
-        tex.wrapT = THREE.ClampToEdgeWrapping;
-        tex.anisotropy = gl.capabilities.getMaxAnisotropy();
-        mat.map = tex;
-        mat.color.set(0xffffff);
-        mat.needsUpdate = true;
-        lastLoadedUrlRef.current = url;
-      });
-    };
-    img.onerror = () => {
-      if (mat.map) { mat.map.dispose(); mat.map = null; mat.needsUpdate = true; }
-      mat.color.set(0x111111);
-      lastLoadedUrlRef.current = url;
-    };
-    img.src = url;
-  }, [gl]);
-
-  useEffect(() => {
-    if (setupDoneRef.current) return;
-    setupDoneRef.current = true;
-
-    loadGltfGroup().then((cached) => {
-      const root = rootRef.current;
-      if (!root || root.children.length > 0) return;
-
-      const group = cloneGroup(cached);
-      const camZ = DEFAULT_CAM_Z / zoom;
-      const box = new THREE.Box3().setFromObject(group);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      const halfH = camZ * Math.tan((40 / 2) * (Math.PI / 180));
-      const sf = (halfH * 2 * 0.8) / size.y;
-      group.scale.setScalar(sf);
-      group.position.copy(center).negate().multiplyScalar(sf);
-      group.rotation.z = initialRotationZ * (Math.PI / 180);
-
-      group.traverse((child) => {
-        if (!(child instanceof THREE.Mesh)) return;
-        const mat = Array.isArray(child.material) ? child.material[0] : child.material;
-        const matName = (mat as THREE.Material)?.name ?? "";
-        const isScreen = matName === "Screen.editable" || child.name === "Screen";
-
-        if (isScreen) {
-          const meshBox = new THREE.Box3().setFromObject(child);
-          const meshSize = meshBox.getSize(new THREE.Vector3());
-          if (meshSize.x > 0 && meshSize.y > 0) screenAspectRef.current = meshSize.x / meshSize.y;
-          const basicMat = new THREE.MeshBasicMaterial({
-            color: 0x111111, side: THREE.FrontSide,
-            transparent: true, depthTest: false, depthWrite: false,
-          });
-          child.material = basicMat;
-          child.renderOrder = 10;
-          screenMatRef.current = basicMat;
-        } else if (!Array.isArray(child.material)) {
-          const m = child.material as THREE.MeshStandardMaterial;
-          if (m.isMeshStandardMaterial) applyMetalMaterial(m, matName);
-        }
-      });
-
-      root.add(group);
-
-      if (imageUrlRef.current && screenMatRef.current) {
-        applyTexture(screenMatRef.current, imageUrlRef.current);
-      }
-
-      onLoaded?.();
-
-      Promise.resolve().then(() => {
-        const orbit = orbitRef.current;
-        if (!orbit) return;
-        orbit.object.position.setFromSphericalCoords(
-          DEFAULT_CAM_Z / zoom,
-          Math.PI / 2 - initialRotationX * (Math.PI / 180),
-          initialRotationY * (Math.PI / 180),
-        );
-        orbit.update();
-      });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const mat = screenMatRef.current;
-    if (!mat) return;
-    if (!imageUrl) {
-      if (mat.map) { mat.map.dispose(); mat.map = null; mat.needsUpdate = true; }
-      lastLoadedUrlRef.current = null;
-      return;
-    }
-    if (lastLoadedUrlRef.current === imageUrl) return;
-    applyTexture(mat, imageUrl);
-  }, [imageUrl, imageMaskConfig, applyTexture]);
-
-  useEffect(() => {
-    const orbit = orbitRef.current;
-    if (!orbit) return;
-    orbit.object.position.setFromSphericalCoords(
-      DEFAULT_CAM_Z / zoom,
-      Math.PI / 2 - initialRotationX * (Math.PI / 180),
-      initialRotationY * (Math.PI / 180),
-    );
-    orbit.update();
-  }, [initialRotationX, initialRotationY, zoom]);
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root || root.children.length === 0) return;
-    (root.children[0] as THREE.Group).rotation.z = initialRotationZ * (Math.PI / 180);
-  }, [initialRotationZ]);
-
-  useEffect(() => {
-    const api: Phone3DApi = {
-      renderAt: (width, height) => {
-        const cam = camera as THREE.PerspectiveCamera;
-        const oldAspect = cam.aspect;
-        gl.setSize(width, height, false);
-        cam.aspect = width / height;
-        cam.updateProjectionMatrix();
-        gl.clear();
-        gl.render(scene, cam);
-        gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3));
-        gl.setSize(PHONE_W, PHONE_H, false);
-        cam.aspect = oldAspect;
-        cam.updateProjectionMatrix();
-      },
-    };
-    onApi?.(api);
-    return () => onApi?.(null);
-  }, [onApi, gl, scene, camera]);
-
-  return (
-    <>
-      <PerspectiveCamera makeDefault fov={40} near={0.01} far={100} position={[0, 0, DEFAULT_CAM_Z / zoom]} />
-      <OrbitControls
-        ref={orbitRef}
-        enableZoom={false}
-        enablePan={false}
-        enableDamping
-        dampingFactor={0.08}
-        onEnd={() => {
-          const orbit = orbitRef.current;
-          if (!orbit || !onRotationChange) return;
-          onRotationChange(
-            (Math.PI / 2 - orbit.getPolarAngle()) * (180 / Math.PI),
-            orbit.getAzimuthalAngle() * (180 / Math.PI),
-          );
-        }}
-      />
-      <SharedLights />
-      <group ref={rootRef} dispose={null} />
-    </>
-  );
-}
-
-// ─── Phone3DViewer (public) ───────────────────────────────────────────────────
-export function Phone3DViewer({
-  imageUrl = null,
-  imageMaskConfig = null,
-  initialRotationX = 0,
-  initialRotationY = 0,
-  initialRotationZ = 0,
-  onRotationChange,
-  onMount,
-  onApi,
-  modelUrl,
-  scale = 1,
-  zoom = 1,
-  shadowIntensity = 0,
-  shadowColor = "#000000",
-}: Props) {
-  const [grabbing, setGrabbing] = useState(false);
-
-  const device = getDeviceFromModelUrl(modelUrl);
-  const isDefaultPhone = device === "phone";
-
-  const t = Math.max(0, Math.min(1, shadowIntensity));
-  const tEased = t * t;
-  const computedBlur = tEased * 60;
-  const computedOpacity = tEased * 0.7;
-  const shadowRgba = shadowColor.startsWith("#")
-    ? parseShadowColor(shadowColor, computedOpacity)
-    : shadowColor;
-  const hasShadow = t > 0.01;
-
-  const sceneProps: SceneProps = {
+function VanillaPhoneRenderer({
     imageUrl,
     imageMaskConfig,
-    initialRotationX,
-    initialRotationY,
-    initialRotationZ,
-    zoom,
+    cropArea,
+    initialRotationX = 0,
+    initialRotationY = 0,
+    initialRotationZ = 0,
     onRotationChange,
+    onMount,
     onApi,
     modelUrl,
-  };
+    zoom = 1,
+    onLoaded,
+    onContextLost,
+}: VanillaRendererProps) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+    const sceneRef = useRef<THREE.Scene | null>(null);
+    const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+    const controlsRef = useRef<OrbitControls | null>(null);
+    const rootGroupRef = useRef<THREE.Group | null>(null);
+    const screenMatRef = useRef<THREE.MeshBasicMaterial | null>(null);
 
-  return (
-    <div
-      style={{
-        display: "inline-block",
-        transformOrigin: "top center",
-        transform: `scale(${scale})`,
-        width: PHONE_W,
-        height: PHONE_H + (hasShadow ? computedBlur * 0.8 : 0),
-        marginTop: "220px",
-        marginLeft: "150px"
-      }}
-    >
-      <div style={{ position: "relative", width: PHONE_W, height: PHONE_H }}>
+    // Refs estables para evitar cargas innecesarias
+    const lastLoadedUrlRef = useRef<string | null>(null);
+    const lastLoadedCropKeyRef = useRef<string | null>(null);
+    const onRotationChangeRef = useRef(onRotationChange);
+    const screenAspectRef = useRef<number>(0.459); // Default fallback
+    const flipYRef = useRef<boolean>(false);
 
-        {hasShadow && (
-          <div
-            aria-hidden
-            style={{
-              position: "absolute",
-              bottom: -(computedBlur * 0.5),
-              left: `${20 + tEased * 5}%`,
-              width: `${60 - tEased * 10}%`,
-              height: Math.max(4, computedBlur * 0.55),
-              borderRadius: "50%",
-              background: shadowRgba,
-              filter: `blur(${Math.max(2, computedBlur * 0.6)}px)`,
-              zIndex: 0,
-              pointerEvents: "none",
-            }}
-          />
-        )}
+    useEffect(() => {
+        onRotationChangeRef.current = onRotationChange;
+    }, [onRotationChange]);
 
-        {/* Canvas wrapper — inset negativo para que OrbitControls no clipee */}
-        <div
-          style={{
-            position: "absolute",
-            inset: "-200px",
-            zIndex: 2,
-            overflow: "visible",
-            cursor: grabbing ? "grabbing" : "grab",
-            filter: hasShadow
-              ? `drop-shadow(0px ${(tEased * 22).toFixed(1)}px ${(tEased * 32).toFixed(1)}px ${shadowRgba})`
-              : "none",
-            transition: "filter 0.15s ease",
-            pointerEvents: "auto",
-          }}
-          onPointerDown={() => setGrabbing(true)}
-          onPointerUp={() => setGrabbing(false)}
-          onPointerLeave={() => setGrabbing(false)}
-        >
-          <CanvasWithLoader
-            key={modelUrl ?? "default"}
-            isDefaultPhone={isDefaultPhone}
-            sceneProps={sceneProps}
-            onMount={onMount}
-          />
-        </div>
-      </div>
-    </div>
-  );
+    // ─── Lógica de Texturas (Independiente de la carga del modelo) ────────────
+    const applyTexture = useCallback(() => {
+        const mat = screenMatRef.current;
+        const renderer = rendererRef.current;
+        if (!mat || !renderer) return;
+
+        const cropKey = cropArea ? JSON.stringify(cropArea) : null;
+
+        if (!imageUrl) {
+            if (mat.map) {
+                mat.map.dispose();
+                mat.map = null;
+                mat.needsUpdate = true;
+            }
+            lastLoadedUrlRef.current = null;
+            lastLoadedCropKeyRef.current = null;
+            return;
+        }
+
+        if (lastLoadedUrlRef.current === imageUrl && lastLoadedCropKeyRef.current === cropKey) {
+            return;
+        }
+
+        const device = getDeviceFromModelUrl(modelUrl);
+        const deviceConfig = deviceConfigs[device];
+        const isDefaultPhone = device === "phone";
+
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+            let TARGET_W = 2048;
+            let TARGET_H = 0;
+            let cornerRadius = 0;
+
+            if (isDefaultPhone) {
+                TARGET_W = PHONE_W * 4;
+                TARGET_H = Math.round(TARGET_W / screenAspectRef.current);
+            } else {
+                TARGET_H = Math.round(TARGET_W / deviceConfig.aspectRatio);
+                cornerRadius = Math.round(TARGET_W * deviceConfig.cornerRadiusFactor);
+            }
+
+            const cropped = applyCropToImage(img, cropArea);
+            const cover = createCoverScreenCanvas(cropped, TARGET_W, TARGET_H, cornerRadius, imageMaskConfig);
+
+            if (mat.map) {
+                mat.map.dispose();
+                mat.map = null;
+            }
+
+            const tex = new THREE.CanvasTexture(cover);
+            tex.flipY = flipYRef.current;
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.generateMipmaps = true;
+            tex.minFilter = THREE.LinearMipmapLinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            tex.wrapS = THREE.ClampToEdgeWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
+            tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+            mat.map = tex;
+            mat.color.set(0xffffff);
+            mat.needsUpdate = true;
+
+            lastLoadedUrlRef.current = imageUrl;
+            lastLoadedCropKeyRef.current = cropKey;
+        };
+        img.onerror = () => {
+            if (mat.map) {
+                mat.map.dispose();
+                mat.map = null;
+                mat.needsUpdate = true;
+            }
+            mat.color.set(0x111111);
+            lastLoadedUrlRef.current = imageUrl;
+            lastLoadedCropKeyRef.current = cropKey;
+        };
+        img.src = imageUrl;
+    }, [imageUrl, imageMaskConfig, cropArea, modelUrl]);
+
+    // Disparar textura al cambiar dependencias
+    useEffect(() => {
+        applyTexture();
+    }, [applyTexture]);
+
+    // ─── Inicialización de la Escena ──────────────────────────────────────────
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        // 1. Setup Base
+        const scene = new THREE.Scene();
+        sceneRef.current = scene;
+
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            alpha: true,
+            preserveDrawingBuffer: true,
+            powerPreference: "high-performance",
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3));
+        renderer.setSize(container.clientWidth, container.clientHeight, false);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.NeutralToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        container.appendChild(renderer.domElement);
+        rendererRef.current = renderer;
+        onMount?.(renderer.domElement);
+
+        const camera = new THREE.PerspectiveCamera(
+            40,
+            container.clientWidth / container.clientHeight,
+            0.01,
+            100
+        );
+        cameraRef.current = camera;
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableZoom = false;
+        controls.enablePan = false;
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.addEventListener("end", () => {
+            const ry = controls.getAzimuthalAngle() * (180 / Math.PI);
+            const rx = (Math.PI / 2 - controls.getPolarAngle()) * (180 / Math.PI);
+            onRotationChangeRef.current?.(rx, ry);
+        });
+        controlsRef.current = controls;
+
+        applyCameraPosition(camera, controls, initialRotationX, initialRotationY, zoom);
+
+        // 2. Luces (Equivalente exacto a SharedLights)
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+        scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+        scene.environmentIntensity = 1.6;
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+
+        const dl1 = new THREE.DirectionalLight(0xffffff, 0.6);
+        dl1.position.set(3, 6, 5);
+        scene.add(dl1);
+
+        const dl2 = new THREE.DirectionalLight(0xc8d8ff, 0.25);
+        dl2.position.set(-4, -2, 3);
+        scene.add(dl2);
+
+        const dl3 = new THREE.DirectionalLight(0xffffff, 0.35);
+        dl3.position.set(0, -5, 5);
+        scene.add(dl3);
+
+        const rootGroup = new THREE.Group();
+        rootGroup.rotation.z = initialRotationZ * DEG;
+        scene.add(rootGroup);
+        rootGroupRef.current = rootGroup;
+
+        // 3. Lógica de Carga de Modelo (Dependiente de modelUrl)
+        const device = getDeviceFromModelUrl(modelUrl);
+        const isDefaultPhone = device === "phone";
+
+        const finalizeSetup = () => {
+            applyTexture();
+            // Asegurar que Three.js pintó el canvas antes de ocultar el spinner
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    onLoaded();
+                });
+            });
+        };
+
+        if (isDefaultPhone) {
+            flipYRef.current = false;
+            loadGltfGroup().then((cached) => {
+                const group = cloneGroup(cached);
+                const camZ = DEFAULT_CAM_Z / zoom;
+                const box = new THREE.Box3().setFromObject(group);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                const halfH = camZ * Math.tan((40 / 2) * DEG);
+                const sf = (halfH * 2 * 0.8) / size.y;
+
+                group.scale.setScalar(sf);
+                group.position.copy(center).negate().multiplyScalar(sf);
+
+                group.traverse((child) => {
+                    if (!(child instanceof THREE.Mesh)) return;
+                    const mat = Array.isArray(child.material) ? child.material[0] : child.material;
+                    const matName = (mat as THREE.Material)?.name ?? "";
+                    const isScreen = matName === "Screen.editable" || child.name === "Screen";
+
+                    if (isScreen) {
+                        const meshBox = new THREE.Box3().setFromObject(child);
+                        const meshSize = meshBox.getSize(new THREE.Vector3());
+                        if (meshSize.x > 0 && meshSize.y > 0) screenAspectRef.current = meshSize.x / meshSize.y;
+
+                        const basicMat = new THREE.MeshBasicMaterial({
+                            color: 0x111111,
+                            side: THREE.FrontSide,
+                            transparent: true,
+                            depthTest: false,
+                            depthWrite: false,
+                        });
+                        child.material = basicMat;
+                        child.renderOrder = 10;
+                        screenMatRef.current = basicMat;
+                    } else if (mat.isMeshStandardMaterial) {
+                        applyMetalMaterial(mat, matName);
+                    }
+                });
+
+                rootGroup.add(group);
+                finalizeSetup();
+            });
+        } else {
+            flipYRef.current = true;
+            loadSpecificGltf(modelUrl!).then((loadedScene) => {
+                const group = loadedScene.clone(true);
+                const camZ = DEFAULT_CAM_Z / zoom;
+                const box = new THREE.Box3().setFromObject(group);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                const halfH = camZ * Math.tan((40 / 2) * DEG);
+                const sf = (halfH * 2 * 0.8) / size.y;
+
+                group.scale.setScalar(sf);
+                group.position.copy(center).negate().multiplyScalar(sf);
+
+                const deviceConfig = deviceConfigs[device];
+                const planeH = 4.3 * deviceConfig.screenHeightFactor;
+                const planeW = planeH * deviceConfig.aspectRatio;
+
+                const basicMat = new THREE.MeshBasicMaterial({
+                    color: 0x111111,
+                    side: THREE.FrontSide,
+                    transparent: true,
+                    depthTest: false,
+                    depthWrite: false,
+                });
+                screenMatRef.current = basicMat;
+
+                const plane = new THREE.Mesh(new THREE.PlaneGeometry(planeW, planeH), basicMat);
+                plane.position.set(deviceConfig.screenOffset.x, deviceConfig.screenOffset.y, deviceConfig.screenOffset.z);
+                plane.renderOrder = 10;
+                group.add(plane);
+
+                rootGroup.add(group);
+                finalizeSetup();
+            });
+        }
+
+        // 4. Render Loop
+        let raf = 0;
+        const tick = () => {
+            raf = requestAnimationFrame(tick);
+            controls.update();
+            renderer.render(scene, camera);
+        };
+        tick();
+
+        // 5. Eventos y Cleanup
+        const resizeObserver = new ResizeObserver(() => {
+            if (!container || !camera || !renderer) return;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h, false);
+        });
+        resizeObserver.observe(container);
+
+        const handleCtxLost = (e: Event) => {
+            e.preventDefault();
+            onContextLost();
+        };
+        renderer.domElement.addEventListener("webglcontextlost", handleCtxLost);
+
+        return () => {
+            cancelAnimationFrame(raf);
+            resizeObserver.disconnect();
+            renderer.domElement.removeEventListener("webglcontextlost", handleCtxLost);
+            pmremGenerator.dispose();
+
+            scene.traverse((obj) => {
+                if (obj instanceof THREE.Mesh) {
+                    obj.geometry.dispose();
+                    if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+                    else obj.material.dispose();
+                }
+            });
+
+            renderer.dispose();
+            if (container.contains(renderer.domElement)) {
+                container.removeChild(renderer.domElement);
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Se ejecuta una vez por montaje (controlado por el prop `key` del padre)
+
+    // ─── Sync Dinámico (Zoom, Rotaciones y API) ─────────────────────────────────
+    useEffect(() => {
+        if (cameraRef.current && controlsRef.current) {
+            applyCameraPosition(cameraRef.current, controlsRef.current, initialRotationX, initialRotationY, zoom);
+        }
+    }, [initialRotationX, initialRotationY, zoom]);
+
+    useEffect(() => {
+        if (rootGroupRef.current) {
+            rootGroupRef.current.rotation.z = initialRotationZ * DEG;
+        }
+    }, [initialRotationZ]);
+
+    useEffect(() => {
+        if (!onApi) return;
+        const api: Phone3DApi = {
+            renderAt: (w, h) => {
+                const renderer = rendererRef.current;
+                const camera = cameraRef.current;
+                const scene = sceneRef.current;
+                if (!renderer || !camera || !scene) return;
+
+                const oldAspect = camera.aspect;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h, false);
+                renderer.render(scene, camera);
+
+                camera.aspect = oldAspect;
+                camera.updateProjectionMatrix();
+                renderer.setSize(containerRef.current?.clientWidth || PHONE_W, containerRef.current?.clientHeight || PHONE_H, false);
+            },
+        };
+        onApi(api);
+        return () => onApi(null);
+    }, [onApi]);
+
+    return <div ref={containerRef} style={{ width: "100%", height: "100%" }} />;
 }
 
-// ─── CanvasWithLoader ────────────────────────────────────────────────────────
-// Each instance owns its own `loaded` state. Remounting via `key` is the
-// idiomatic React way to reset state when modelUrl changes — no
-// cascading setState in useEffect.
-function CanvasWithLoader({
-  isDefaultPhone,
-  sceneProps,
-  onMount,
-}: {
-  isDefaultPhone: boolean;
-  sceneProps: SceneProps;
-  onMount?: (canvas: HTMLCanvasElement) => void;
-}) {
-  const [loaded, setLoaded] = useState(false);
+// ─── Componente Principal Público ─────────────────────────────────────────────
+export function Phone3DViewer({
+    imageUrl = null,
+    imageMaskConfig = null,
+    cropArea = null,
+    initialRotationX = 0,
+    initialRotationY = 0,
+    initialRotationZ = 0,
+    onRotationChange,
+    onMount,
+    onApi,
+    modelUrl,
+    scale = 1,
+    zoom = 1,
+    shadowIntensity = 0,
+    shadowColor = "#000000",
+}: Props) {
+    const [grabbing, setGrabbing] = useState(false);
+    const loadedRef = useRef(false);
+    const [showShadow, setShowShadow] = useState(false);
+    const [showSpinner, setShowSpinner] = useState(true);
+    
+    // Fuerza remounting (recreación del contexto WebGL) al perder contexto o cambiar dispositivo
+    const [mountKey, setMountKey] = useState(0);
+
+    const t = Math.max(0, Math.min(1, shadowIntensity));
+    const tEased = t * t;
+    const computedBlur = tEased * 60;
+    const computedOpacity = tEased * 0.7;
+    const shadowRgba = shadowColor.startsWith("#")
+        ? parseShadowColor(shadowColor, computedOpacity)
+        : shadowColor;
+    
+    const hasShadow = t > 0.01 && showShadow;
+
+    const handleLoaded = useCallback(() => {
+        if (loadedRef.current) return;
+        loadedRef.current = true;
+        setShowSpinner(false);
+        setShowShadow(true);
+    }, []);
+
+    const handleContextLost = useCallback(() => {
+        setMountKey((prev) => prev + 1);
+        loadedRef.current = false;
+        setShowSpinner(true);
+        setShowShadow(false);
+    }, []);
+
+    // El `key` final que asegura resetear todo el canvas cuando cambia el dispositivo
+    const finalMountKey = `${modelUrl ?? "default"}_${mountKey}`;
 
     return (
-    <>
-      <Canvas
-        style={{
-          width: "100%",
-          height: "100%",
-          overflow: "visible",
-          display: "block",
-        }}
-        gl={{
-          antialias: true,
-          alpha: true,
-          preserveDrawingBuffer: true,
-          powerPreference: "high-performance",
-          // Permite software rendering si la GPU no soporta WebGL2 —
-          // reduce probabilidad de "Context Lost" en hardware limitado.
-          failIfMajorPerformanceCaveat: false,
-        }}
-        // dpr=2: balance entre nitidez y consumo de VRAM. dpr=4
-        // saturaba la GPU junto con los GLB pesados (iPhone 15, S25)
-        // y causaba "WebGLRenderer: Context Lost".
-        dpr={2}
-        onCreated={({ gl, scene: s }) => {
-          gl.outputColorSpace = THREE.SRGBColorSpace;
-          gl.toneMapping = THREE.NeutralToneMapping;
-          gl.toneMappingExposure = 1.0;
-          s.environmentIntensity = 1.6;
-          onMount?.(gl.domElement);
-        }}
-      >
-        {isDefaultPhone
-          ? <DefaultPhoneModelScene {...sceneProps} onLoaded={() => setLoaded(true)} />
-          : <GltfModelScene        {...sceneProps} onLoaded={() => setLoaded(true)} />
-        }
-      </Canvas>
-
-      {/* Loader — covers the white screen plane while the GLB
-          and the user's image texture are loading on first mount.
-          Removed automatically via key remount on device switch. */}
-      {!loaded && (
         <div
-          className="absolute inset-0 flex items-center justify-center pointer-events-none"
-          style={{ zIndex: 4 }}
+            style={{
+                display: "inline-block",
+                transformOrigin: "top center",
+                transform: `scale(${scale})`,
+                width: PHONE_W,
+                height: PHONE_H + (hasShadow ? computedBlur * 0.8 : 0),
+                marginTop: "220px",
+            }}
         >
-          <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+            <div style={{ position: "relative", width: PHONE_W, height: PHONE_H }}>
+                
+                {/* Sombra de Suelo (CSS Render) */}
+                {hasShadow && (
+                    <div
+                        aria-hidden
+                        style={{
+                            position: "absolute",
+                            bottom: -(computedBlur * 0.5),
+                            left: `${20 + tEased * 5}%`,
+                            width: `${60 - tEased * 10}%`,
+                            height: Math.max(4, computedBlur * 0.55),
+                            borderRadius: "50%",
+                            background: shadowRgba,
+                            filter: `blur(${Math.max(2, computedBlur * 0.6)}px)`,
+                            zIndex: 0,
+                            pointerEvents: "none",
+                        }}
+                    />
+                )}
+
+                {/* Contenedor del Canvas con Hit-Area expandida para el Orbit */}
+                <div
+                    style={{
+                        position: "absolute",
+                        inset: "-200px",
+                        zIndex: 2,
+                        overflow: "visible",
+                        cursor: grabbing ? "grabbing" : "grab",
+                        filter: hasShadow
+                            ? `drop-shadow(0px ${(tEased * 22).toFixed(1)}px ${(tEased * 32).toFixed(1)}px ${shadowRgba})`
+                            : "none",
+                        transition: showShadow ? "filter 0.3s ease" : "none",
+                        pointerEvents: "auto",
+                    }}
+                    onPointerDown={() => setGrabbing(true)}
+                    onPointerUp={() => setGrabbing(false)}
+                    onPointerLeave={() => setGrabbing(false)}
+                >
+                    <VanillaPhoneRenderer
+                        key={finalMountKey}
+                        imageUrl={imageUrl}
+                        imageMaskConfig={imageMaskConfig}
+                        cropArea={cropArea}
+                        initialRotationX={initialRotationX}
+                        initialRotationY={initialRotationY}
+                        initialRotationZ={initialRotationZ}
+                        zoom={zoom}
+                        modelUrl={modelUrl}
+                        onRotationChange={onRotationChange}
+                        onMount={onMount}
+                        onApi={onApi}
+                        onLoaded={handleLoaded}
+                        onContextLost={handleContextLost}
+                    />
+                </div>
+
+                {/* Spinner de Carga Inicial */}
+                {showSpinner && (
+                    <div
+                        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                        style={{ zIndex: 10 }}
+                    >
+                        <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                    </div>
+                )}
+            </div>
         </div>
-      )}
-    </>
-  );
+    );
 }

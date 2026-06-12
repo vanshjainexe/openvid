@@ -1,33 +1,16 @@
 "use client";
 
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
-import type { MotionStyle, AnimMode } from "@/types/motion.types";
 
-interface MotionState {
+interface Mockup3dState {
   selectedTemplateId: string | null;
   setSelectedTemplateId: (id: string | null) => void;
-
-  motionDuration: number;
-  setMotionDuration: (d: number) => void;
 
   motionImageUrl: string | null;
   setMotionImageUrl: (url: string | null) => void;
 
   motionIntensity: number;
   setMotionIntensity: (i: number) => void;
-
-  motionStyle: MotionStyle;
-  setMotionStyle: (s: MotionStyle) => void;
-
-  /** ID of the active camera-path variant within the current template */
-  motionVariantId: string | null;
-  setMotionVariantId: (id: string) => void;
-
-  /** Which finite animations play: entry, exit, both, or none */
-  motionAnimMode: AnimMode;
-  setMotionAnimMode: (m: AnimMode) => void;
-
-  // ── Image mode phone mockup state ──────────────────────────────────────────
   /** Whether the phone mockup is active in image mode */
   imagePhoneActive: boolean;
   setImagePhoneActive: (v: boolean) => void;
@@ -77,16 +60,13 @@ interface MotionState {
   canRedoMotion: boolean;
 }
 
-const MotionContext = createContext<MotionState | null>(null);
+const Mockup3dContext = createContext<Mockup3dState | null>(null);
 
-export function MotionProvider({ children }: { children: ReactNode }) {
+export function Mockup3dProvider({ children }: { children: ReactNode }) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-  const [motionDuration, setMotionDuration] = useState(8000); // era 4000
   const [motionImageUrl, setMotionImageUrl] = useState<string | null>(null);
   const [motionIntensity, setMotionIntensity] = useState(70);
-  const [motionStyle, setMotionStyle] = useState<MotionStyle>("normal");
-  const [motionVariantId, setMotionVariantId] = useState<string | null>(null);
-  const [motionAnimMode, setMotionAnimMode] = useState<AnimMode>("entry+exit");
+  // Add this with your other useState hooks inside Mockup3dProvider
 
   // Image mode phone mockup
   const [imagePhoneActive, setImagePhoneActive] = useState(false);
@@ -104,8 +84,6 @@ export function MotionProvider({ children }: { children: ReactNode }) {
   const [imagePhoneShadowColor, setImagePhoneShadowColor] = useState("#000000");
 
   // ── Undo/redo stack for motion transforms (max 50 entries) ────────────────
-  // Each entry is a snapshot of the transform-related state. When the user
-  // presses Ctrl+Z / Ctrl+Shift+Z, we pop/push from the stacks.
   const historyRef = useRef<{
     past: Array<{
       x: number; y: number; scale: number;
@@ -119,8 +97,6 @@ export function MotionProvider({ children }: { children: ReactNode }) {
     }>;
   }>({ past: [], future: [] });
   const MAX_HISTORY = 50;
-  // Tracked via useState so consumers re-render when the stacks change.
-  // (Mutating historyRef.current alone wouldn't trigger a re-render.)
   const [canUndoMotion, setCanUndoMotion] = useState(false);
   const [canRedoMotion, setCanRedoMotion] = useState(false);
 
@@ -173,14 +149,10 @@ export function MotionProvider({ children }: { children: ReactNode }) {
   }, [imagePhoneX, imagePhoneY, imagePhoneScale, imagePhoneRotX, imagePhoneRotY, imagePhoneRotZ, imagePhoneOpening, imagePhoneShadow, imagePhoneShadowColor]);
 
   return (
-    <MotionContext.Provider value={{
+    <Mockup3dContext.Provider value={{
       selectedTemplateId, setSelectedTemplateId,
-      motionDuration, setMotionDuration,
       motionImageUrl, setMotionImageUrl,
       motionIntensity, setMotionIntensity,
-      motionStyle, setMotionStyle,
-      motionVariantId, setMotionVariantId,
-      motionAnimMode, setMotionAnimMode,
       imagePhoneActive, setImagePhoneActive,
       imagePhoneX, setImagePhoneX,
       imagePhoneY, setImagePhoneY,
@@ -199,12 +171,12 @@ export function MotionProvider({ children }: { children: ReactNode }) {
       canRedoMotion,
     }}>
       {children}
-    </MotionContext.Provider>
+    </Mockup3dContext.Provider>
   );
 }
 
-export function useMotionContext() {
-  const ctx = useContext(MotionContext);
-  if (!ctx) throw new Error("useMotionContext must be used inside MotionProvider");
+export function useMockup3dContext() {
+  const ctx = useContext(Mockup3dContext);
+  if (!ctx) throw new Error("useMockup3dContext must be used inside Mockup3dProvider");
   return ctx;
 }

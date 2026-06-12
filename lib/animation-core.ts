@@ -1,4 +1,13 @@
-import { MotionStyle, ScriptFn } from "@/types/motion.types";
+// ─── Local types (motion.types.ts fue eliminado al consolidar MockupMenu) ─────
+type MotionStyle = "smooth" | "normal" | "cinematic";
+type ScriptFn = (
+  av: { rx: number; ry: number; tx: number; ty: number; sc: number },
+  intensity: number,
+  duration: number,
+  style: MotionStyle,
+  onUpdate?: () => void
+) => gsap.core.Timeline;
+
 import gsap from "gsap";
 
 // ─── Neutral resting position (slight 3-D tilt for depth) ────────────────────

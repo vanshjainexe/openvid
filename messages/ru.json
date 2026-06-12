@@ -518,7 +518,6 @@
       "daysAgo": "{days, plural, one {# день назад} few {# дня назад} many {# дней назад} other {# дней назад}}"
     },
     "actions": {
-      "addToCanvas": "Добавить на холст",
       "delete": "Удалить из истории"
     }
   },

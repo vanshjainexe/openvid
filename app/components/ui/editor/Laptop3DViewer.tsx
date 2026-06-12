@@ -1,30 +1,15 @@
 "use client";
 
-/**
- * Laptop3DViewer
- *
- * Drag system: mirrors IPhone13ProMax3DViewer / OrbitControls exactly.
- *   - Spherical-coordinate camera (radius, phi, theta) instead of direct
- *     rotation on the group → same feel as OrbitControls.
- *   - Inertial damping via requestAnimationFrame loop (dampingFactor 0.08).
- *   - onRotationChange fires at pointer-up (same as onEnd in OrbitControls).
- *   - initialRotationX / initialRotationY map to phi / theta identically.
- *
- * Canvas: simple absolute positioning (top:0, left:0) like the v2 viewer —
- * no BLEED system. The parent container uses overflow:visible so geometry
- * rotated outside the nominal 600×410 bounds is never clipped.
- */
-
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import {
   createCoverScreenCanvas,
+  applyCropToImage,
   parseShadowColor,
   type ImageMaskConfigLike,
 } from "@/lib/phone3d.utils";
 
-// ─── Dimensiones ──────────────────────────────────────────────────────────────
 const LAPTOP_W = 1500;
 const LAPTOP_H = 1035;
 const RENDER_MULTIPLIER = 2;
@@ -50,8 +35,9 @@ export interface Laptop3DApi {
 
 interface Props {
   imageUrl?: string | null;
-  openingProgress?: number;
   imageMaskConfig?: ImageMaskConfigLike | null;
+  cropArea?: { x: number; y: number; width: number; height: number } | null;
+  openingProgress?: number;
   initialRotationX?: number;
   initialRotationY?: number;
   initialRotationZ?: number;
@@ -99,6 +85,7 @@ export function Laptop3DViewer({
   imageUrl = null,
   openingProgress = 1,
   imageMaskConfig = null,
+  cropArea = null,
   initialRotationX = 0,
   initialRotationY = 0,
   initialRotationZ = 0,
@@ -120,6 +107,8 @@ export function Laptop3DViewer({
   const lightHolderRef = useRef<THREE.Group | null>(null);
   const imageUrlRef = useRef<string | null>(imageUrl);
   const lastLoadedUrlRef = useRef<string | null>(null);
+  const lastLoadedCropKeyRef = useRef<string | null>(null);
+  const cropAreaRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const imageMaskConfigRef = useRef<ImageMaskConfigLike | null>(imageMaskConfig);
   const openingProgressRef = useRef<number>(openingProgress);
   const onRotationChangeRef = useRef(onRotationChange);
@@ -146,6 +135,7 @@ export function Laptop3DViewer({
     lastLoadedUrlRef.current = null;
   }, [imageMaskConfig]);
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => { cropAreaRef.current = cropArea ?? null; }, [cropArea]);
 
   // ── Lid + screen opacity ──────────────────────────────────────────────────
   const applyLid = useCallback(() => {
@@ -163,12 +153,20 @@ export function Laptop3DViewer({
     mat: THREE.MeshBasicMaterial,
     renderer: THREE.WebGLRenderer
   ) => {
+    // Skip si ya cargamos esta URL con el mismo crop
+    const cropKey = cropAreaRef.current ? JSON.stringify(cropAreaRef.current) : null;
+    if (lastLoadedUrlRef.current === url && lastLoadedCropKeyRef.current === cropKey) return;
+    lastLoadedUrlRef.current = url;
+    lastLoadedCropKeyRef.current = cropKey;
+
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
       const TEX_W = RENDER_W * 2;
       const TEX_H = RENDER_H * 2;
-      const cover = createCoverScreenCanvas(img, TEX_W, TEX_H, 0, imageMaskConfigRef.current);
+      // Aplica el crop antes del cover-fit
+      const cropped = applyCropToImage(img, cropAreaRef.current);
+      const cover = createCoverScreenCanvas(cropped, TEX_W, TEX_H, 0, imageMaskConfigRef.current);
       if (mat.map) mat.map.dispose();
       const tex = new THREE.CanvasTexture(cover);
       tex.flipY = false;
@@ -472,7 +470,6 @@ export function Laptop3DViewer({
     onRotationChangeRef.current?.(rx, ry);
   }, []);
 
-  // ── Shadow ────────────────────────────────────────────────────────────────
   const t = Math.max(0, Math.min(1, shadowIntensity));
   const tEased = t * t;
   const computedBlur = tEased * 60;
@@ -490,15 +487,9 @@ export function Laptop3DViewer({
         transform: `scale(${scale})`,
         width: LAPTOP_W,
         height: LAPTOP_H + (hasShadow ? computedBlur * 0.8 : 0),
-        marginTop: "200px",
+        marginTop: "250px",
       }}
     >
-      {/*
-        * overflow:visible is the key fix — the canvas renders at LAPTOP_W×LAPTOP_H
-        * but geometry rotated beyond those bounds is no longer clipped.
-        * This mirrors how IPhone13ProMax3DViewer uses inset:"-200px" to achieve
-        * the same result, but without needing an oversized canvas or BLEED math.
-        */}
       <div
         style={{
           position: "relative",

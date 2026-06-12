@@ -17,7 +17,7 @@ import {
     PopoverTitle,
 } from "@/components/ui/popover";
 import { PhotoEditorPlaceholderProps, Preview3DConfig, PREVIEW_CONFIGS, PREVIEW_TO_PHONE_OFFSET } from "@/types/photo.types";
-import { useMotionContext } from "@/app/contexts/MotionContext";
+import { useMockup3dContext } from "@/app/contexts/Mockup3dContext";
 
 export function PhotoEditorPlaceholder({
     className = "",
@@ -38,7 +38,7 @@ export function PhotoEditorPlaceholder({
 }: PhotoEditorPlaceholderProps) {
     const previewImageUrl = staticImageUrl ?? canvasImageUrl;
     const t = useTranslations("editor");
-    const { imagePhoneActive, imagePhoneDevice, setImagePhoneRotX, setImagePhoneRotY, setImagePhoneRotZ, setImagePhonePerspective, setImagePhoneScale, setImagePhoneY, setImagePhonePresetId } = useMotionContext();
+    const { imagePhoneActive, imagePhoneDevice, setImagePhoneRotX, setImagePhoneRotY, setImagePhoneRotZ, setImagePhonePerspective, setImagePhoneScale, setImagePhoneY, setImagePhonePresetId } = useMockup3dContext();
     const [customConfig, setCustomConfig] = useState<Preview3DConfig>({
         id: "custom",
         label: "Custom",

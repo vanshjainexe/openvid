@@ -1,25 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { Icon } from "@iconify/react";
-import { useMotionContext } from "@/app/contexts/MotionContext";
-import { MotionTemplate } from "@/types/motion.types";
 
-// ─── MotionMenu ───────────────────────────────────────────────────────────────
 export function MotionMenu() {
-  const { selectedTemplateId, setSelectedTemplateId, setMotionDuration } = useMotionContext();
-  const [openTemplate, setOpenTemplate] = useState<MotionTemplate | null>(null);
-
-  const handleClick = (template: MotionTemplate) => {
-    if (!template.showPhone) {
-      // "Solo video" — deactivate immediately, no editor
-      setSelectedTemplateId("none");
-      setMotionDuration(0);
-      return;
-    }
-    // Templates with phone open their own editor
-    setOpenTemplate(template);
-  };
 
   return (
     <div className="p-4 flex flex-col gap-5 w-full bg-[#111113] min-h-screen">

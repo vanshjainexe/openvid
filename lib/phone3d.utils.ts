@@ -216,3 +216,63 @@ export function parseShadowColor(hex: string, opacity: number): string {
   const b = parseInt(h.length === 3 ? h[2] + h[2] : h.slice(4, 6), 16);
   return `rgba(${r},${g},${b},${opacity.toFixed(3)})`;
 }
+
+// ─── Crop helper ─────────────────────────────────────────────────────────────
+// Aplica un crop a una imagen y devuelve un HTMLCanvasElement con la región
+// recortada. El crop está en porcentajes (0-100). Si el crop cubre el 100%
+// o es null/undefined, devuelve la imagen original sin modificar.
+export interface CropAreaLike {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export function applyCropToImage(
+  source: HTMLImageElement | HTMLVideoElement | HTMLCanvasElement,
+  cropArea: CropAreaLike | null | undefined
+): HTMLCanvasElement {
+  let srcW: number, srcH: number;
+  if (source instanceof HTMLImageElement) {
+    srcW = source.naturalWidth  || source.width  || 1;
+    srcH = source.naturalHeight || source.height || 1;
+  } else if (source instanceof HTMLVideoElement) {
+    srcW = source.videoWidth  || 1;
+    srcH = source.videoHeight || 1;
+  } else {
+    srcW = source.width  || 1;
+    srcH = source.height || 1;
+  }
+
+  // Si el crop está vacío o cubre el 100%, no hace nada
+  const isFullCrop = !cropArea
+    || (cropArea.x <= 0 && cropArea.y <= 0
+        && cropArea.width >= 100 && cropArea.height >= 100);
+  if (isFullCrop) {
+    const out = document.createElement("canvas");
+    out.width = srcW;
+    out.height = srcH;
+    out.getContext("2d")!.drawImage(source, 0, 0, srcW, srcH);
+    return out;
+  }
+
+  // Calcular región en píxeles. Clamp para no salirnos de la imagen.
+  const x = Math.max(0, Math.min(100, cropArea.x));
+  const y = Math.max(0, Math.min(100, cropArea.y));
+  const width = Math.max(1, Math.min(100 - x, cropArea.width));
+  const height = Math.max(1, Math.min(100 - y, cropArea.height));
+
+  const sx = (x / 100) * srcW;
+  const sy = (y / 100) * srcH;
+  const sw = (width / 100) * srcW;
+  const sh = (height / 100) * srcH;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(sw);
+  canvas.height = Math.round(sh);
+  const ctx = canvas.getContext("2d")!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  return canvas;
+}

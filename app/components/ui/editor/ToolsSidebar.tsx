@@ -259,8 +259,11 @@ export function ToolsSidebar({
                             description: t("popovers.mockup.description"),
                             videoSrc: "/videos/preview-mockup.mp4"
                         }}
+                        badge={t("tools.newTool")}
+                        badgeStyle="premium"
                     />
-                    {isPhotoMode && (
+
+                    {/* {isPhotoMode && (
                         <SidebarTool
                             icon="mage:box-3d"
                             label={t("tools.motion")}
@@ -274,8 +277,8 @@ export function ToolsSidebar({
                             badge={t("tools.newTool")}
                             badgeStyle="premium"
                         />
-                    )}
-                    
+                    )} */}
+
                     {/* Video-specific tools - hidden in photo mode */}
                     {!isPhotoMode && (
                         <SidebarTool

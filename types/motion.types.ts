@@ -1,10 +1,3 @@
-// ─── Shared motion types ──────────────────────────────────────────────────────
-
-export type MotionStyle = "smooth" | "normal" | "cinematic";
-
-/** Controls which finite animations play during a video clip */
-export type AnimMode = "entry" | "exit" | "entry+exit" | "none" | "static";
-
 /** Animation vector — GSAP tweens this object, Three.js reads it */
 export interface AV {
   rx: number;
@@ -14,12 +7,15 @@ export interface AV {
   sc: number;
 }
 
+// ─── Tipos restaurados (motion.types.ts fue modificado pero aún los usa CameraVariant) ─────
+export type MotionStyle = "smooth" | "normal" | "cinematic";
+export type AnimMode = "entry" | "exit" | "entry+exit" | "none" | "static";
+
 /** A cinematic script function — returns a repeating GSAP timeline */
 export type ScriptFn = (
   av: AV,
   intensity: number,   // 0–1
   durMs: number,
-  style: MotionStyle,
   onUpdate: () => void,
 ) => gsap.core.Timeline;
 

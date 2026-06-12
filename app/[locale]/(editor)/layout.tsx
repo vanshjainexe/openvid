@@ -2,18 +2,18 @@
 
 import { AuthProvider } from "@/app/contexts/useAuth";
 import RecordingOverlay from "../../components/ui/RecordingOverlay";
-import { MotionProvider } from "@/app/contexts/MotionContext";
+import { Mockup3dProvider } from "@/app/contexts/Mockup3dContext";
 import { RecordingProvider } from "@/app/contexts/RecordingContext";
 
 export default function EditorLayout({ children }: { children: React.ReactNode }) {
     return (
         <AuthProvider>
             <RecordingProvider>
-                <MotionProvider>
+                <Mockup3dProvider>
                     <div className="min-h-screen bg-neutral-950">
                         {children}
                     </div>
-                </MotionProvider>
+                </Mockup3dProvider>
                 <RecordingOverlay />
             </RecordingProvider>
         </AuthProvider>

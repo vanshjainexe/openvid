@@ -174,18 +174,6 @@ export function HistoryMenu({
                                 <div className="absolute inset-0 bg-linear-to-t from-[#0A0A0A]/95 via-[#0A0A0A]/50 to-black/20 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-between p-2.5">
 
                                     <div className="flex justify-end gap-1.5 -translate-y-2.5 group-hover:translate-y-0 transition-transform duration-300">
-                                        <TooltipAction label={t("actions.addToCanvas")}>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onAddToCanvas(project.id);
-                                                }}
-                                                className="size-6 flex items-center justify-center squircle-element bg-[#0A0A0A]/80 backdrop-blur-md border border-white/20 text-white/70 hover:text-white hover:bg-gray-500 hover:border-gray-500 transition-all"
-                                            >
-                                                <Icon icon="material-symbols:add-rounded" width="16" />
-                                            </button>
-                                        </TooltipAction>
-
                                         <TooltipAction label={t("actions.delete")}>
                                             <button
                                                 onClick={(e) => {

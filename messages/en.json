@@ -550,7 +550,6 @@
       "daysAgo": "{days, plural, =1 {1 day ago} other {# days ago}}"
     },
     "actions": {
-      "addToCanvas": "Add to canvas",
       "delete": "Delete from history"
     }
   },

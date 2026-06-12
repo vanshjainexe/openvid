@@ -1,27 +1,17 @@
 "use client";
 
-/**
- * IPhone13ProMax3DViewer (R3F + drei — OrbitControls edition)
- *
- * Sombra: mismo sistema que Laptop3DViewer
- * - Una sola prop `shadowIntensity` (0–1)
- * - Curva cuadratica interna (t^2): arranque suave, maximo dramatico
- * - Elipse de suelo + drop-shadow en contorno del modelo
- */
-
-import { Canvas } from "@react-three/fiber";
-import {
-    PerspectiveCamera,
-    useGLTF,
-    Environment,
-    OrbitControls,
-} from "@react-three/drei";
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import {
     createCoverScreenCanvas,
+    applyCropToImage,
     parseShadowColor,
     type ImageMaskConfigLike,
+    PHONE_W,
+    PHONE_H,
 } from "@/lib/phone3d.utils";
 
 export interface IPhone13ProMax3DApi {
@@ -31,6 +21,7 @@ export interface IPhone13ProMax3DApi {
 interface Props {
     imageUrl?: string | null;
     imageMaskConfig?: ImageMaskConfigLike | null;
+    cropArea?: { x: number; y: number; width: number; height: number } | null;
     initialRotationX?: number;
     initialRotationY?: number;
     initialRotationZ?: number;
@@ -39,374 +30,50 @@ interface Props {
     onApi?: (api: IPhone13ProMax3DApi | null) => void;
     scale?: number;
     zoom?: number;
-    /**
-     * Intensidad de la sombra de 0 a 1.
-     * 0 = sin sombra, 1 = sombra maxima.
-     * Curva cuadratica interna (t^2) para crecimiento gradual en todo el rango.
-     * Default: 0 (sin sombra)
-     */
     shadowIntensity?: number;
-    /**
-     * Color base de la sombra en hex o rgb. Default: "#000000"
-     * La opacidad se controla automaticamente con shadowIntensity.
-     */
     shadowColor?: string;
 }
 
-// ─── Textura de pantalla ─────────────────────────────────────────────────────
+// ─── Dimensiones de textura ───────────────────────────────────────────────────
 const TEX_W = 1284 * 2;
 const TEX_H = 2778 * 2;
 
-useGLTF.preload("/models/apple_iphone_13_pro_max.glb");
-
-// ─── Tipos del GLB ──────────────────────────────────────────────────────────
-interface GLTFNodes {
-    Frame_Frame_0: THREE.Mesh;
-    Frame_Frame2_0: THREE.Mesh;
-    Frame_Port_0: THREE.Mesh;
-    Frame_Antenna_0: THREE.Mesh;
-    Frame_Mic_0: THREE.Mesh;
-    Body_Mic_0: THREE.Mesh;
-    Body_Bezel_0: THREE.Mesh;
-    Body_Body_0: THREE.Mesh;
-    Body_Wallpaper_0: THREE.Mesh;
-    Body_Camera_Glass_0: THREE.Mesh;
-    Body_Lens_0: THREE.Mesh;
-    Body_Material_0: THREE.Mesh;
-    Camera_Body_0: THREE.Mesh;
-    Camera_Glass_0: THREE.Mesh;
-    Camera_Camera_Frame001_0: THREE.Mesh;
-    Camera_Mic_0: THREE.Mesh;
-    Body001_Screen_Glass_0: THREE.Mesh;
-    Button_Frame_0: THREE.Mesh;
-    Circle003_Frame_0: THREE.Mesh;
-    Apple_Logo_Logo_0: THREE.Mesh;
-    Camera001_Body_0: THREE.Mesh;
-    Camera001_Gray_Glass_0: THREE.Mesh;
-    Camera001_Flash_0: THREE.Mesh;
-    Camera001_Port_0: THREE.Mesh;
-    Camera001_Camera_Frame_0: THREE.Mesh;
-    Camera001_Camera_Glass_0: THREE.Mesh;
-    Camera001_Lens_0: THREE.Mesh;
-    Camera001_Black_Glass_0: THREE.Mesh;
-    Camera003_Material002_0: THREE.Mesh;
+// ─── Caché global del GLB ─────────────────────────────────────────────────────
+let gltfCachePromise: Promise<THREE.Group> | null = null;
+function loadIPhoneGltf(): Promise<THREE.Group> {
+    if (!gltfCachePromise) {
+        gltfCachePromise = new Promise<THREE.Group>((resolve, reject) =>
+            new GLTFLoader().load(
+                "/models/apple_iphone_13_pro_max.glb",
+                (gltf) => resolve(gltf.scene as THREE.Group),
+                undefined,
+                reject
+            )
+        );
+    }
+    return gltfCachePromise;
 }
 
-interface GLTFMaterials {
-    Frame: THREE.Material;
-    Frame2: THREE.Material;
-    Port: THREE.Material;
-    Antenna: THREE.Material;
-    material: THREE.Material;
-    Bezel: THREE.Material;
-    Body: THREE.Material;
-    Wallpaper: THREE.Material;
-    Camera_Glass: THREE.Material;
-    Lens: THREE.Material;
-    Material: THREE.Material;
-    Glass: THREE.Material;
-    "Camera_Frame.001": THREE.Material;
-    Screen_Glass: THREE.Material;
-    Logo: THREE.Material;
-    Gray_Glass: THREE.Material;
-    Flash: THREE.Material;
-    Camera_Frame: THREE.Material;
-    Black_Glass: THREE.Material;
-    "Material.002": THREE.Material;
+// ─── Helpers matemáticos ──────────────────────────────────────────────────────
+const DEG = Math.PI / 180;
+function applyCameraPosition(
+    camera: THREE.PerspectiveCamera,
+    controls: OrbitControls,
+    rx: number,
+    ry: number,
+    zoom: number
+) {
+    const radius = 1.5 / zoom;
+    const phi = Math.PI / 2 - rx * DEG;
+    const theta = ry * DEG;
+    camera.position.setFromSphericalCoords(radius, phi, theta);
+    controls.update();
 }
 
-// ─── Escena 3D ──────────────────────────────────────────────────────────────
-function ModelScene({
-    imageUrl,
-    imageMaskConfig,
-    initialRotationX,
-    initialRotationY,
-    initialRotationZ,
-    onRotationChange,
-    rootRef,
-    cameraRef,
-    zoom,
-    onApi,
-    onLoaded,
-}: {
-    imageUrl: string | null;
-    imageMaskConfig: ImageMaskConfigLike | null;
-    initialRotationX: number;
-    initialRotationY: number;
-    initialRotationZ: number;
-    onRotationChange?: (rx: number, ry: number) => void;
-    rootRef: React.MutableRefObject<THREE.Group | null>;
-    cameraRef: React.MutableRefObject<THREE.PerspectiveCamera | null>;
-    zoom: number;
-    onApi?: (api: IPhone13ProMax3DApi | null) => void;
-    onLoaded?: () => void;
-}) {
-    const gltf = useGLTF("/models/apple_iphone_13_pro_max.glb") as unknown as {
-        nodes: GLTFNodes;
-        materials: GLTFMaterials;
-    };
-    const { nodes, materials } = gltf;
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const orbitRef = useRef<any>(null);
-    const lastLoadedImageUrlRef = useRef<string | null>(null);
-    const lastLoadedMaskKeyRef = useRef<string | null>(null);
-    const wallpaperMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
-
-    useEffect(() => {
-        const api: IPhone13ProMax3DApi = {
-            renderAt: (w, h) => { void w; void h; },
-        };
-        onApi?.(api);
-        return () => onApi?.(null);
-    }, [onApi]);
-
-    useEffect(() => {
-        if (materials.Wallpaper) {
-            wallpaperMatRef.current = materials.Wallpaper as THREE.MeshStandardMaterial;
-        }
-    }, [materials.Wallpaper]);
-
-    useEffect(() => {
-        const mat = wallpaperMatRef.current;
-        if (!mat) return;
-
-        // Serializa el mask para detectar cambios. Si el mask cambia,
-        // la textura debe regenerarse aunque la imagen no cambie.
-        const maskKey = imageMaskConfig ? JSON.stringify(imageMaskConfig) : null;
-
-        if (!imageUrl) {
-            if (mat.map) { mat.map.dispose(); mat.map = null; mat.needsUpdate = true; }
-            lastLoadedImageUrlRef.current = null;
-            lastLoadedMaskKeyRef.current = null;
-            return;
-        }
-        // Skip solo si la imagen Y el mask no cambiaron
-        if (
-            lastLoadedImageUrlRef.current === imageUrl &&
-            lastLoadedMaskKeyRef.current === maskKey
-        ) return;
-
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-            const cover = createCoverScreenCanvas(img, TEX_W, TEX_H, 0, imageMaskConfig);
-            if (mat.map) { mat.map.dispose(); mat.map = null; }
-
-            const tex = new THREE.CanvasTexture(cover);
-            tex.flipY = true;
-            tex.colorSpace = THREE.SRGBColorSpace;
-            tex.generateMipmaps = true;
-            tex.minFilter = THREE.LinearMipmapLinearFilter;
-            tex.magFilter = THREE.LinearFilter;
-            tex.wrapS = THREE.ClampToEdgeWrapping;
-            tex.wrapT = THREE.ClampToEdgeWrapping;
-            mat.map = tex;
-            mat.needsUpdate = true;
-            lastLoadedImageUrlRef.current = imageUrl;
-            lastLoadedMaskKeyRef.current = maskKey;
-            onLoaded?.();
-        };
-        img.onerror = () => {
-            // Even on error, hide the loader so the user sees the device
-            // (with the original iOS wallpaper) instead of a permanent spinner.
-            onLoaded?.();
-        };
-        img.src = imageUrl;
-    }, [imageUrl, imageMaskConfig, onLoaded]);
-
-    useEffect(() => {
-        // Reposiciona OrbitControls cuando cambian initialRotationX/Y.
-        // Permite que el crosshair "Rotation XY" del popup Custom del
-        // PhotoEditorPlaceholder mueva la cámara en tiempo real.
-        // NO interfiere con el drag del usuario porque:
-        // - El drag llama onEnd al TERMINAR, no en cada frame
-        // - El setFromSphericalCoords es determinístico: la posición
-        //   calculada desde los props ES la misma que el drag dejó
-        //   (mismo phi/theta/radius), así que no hay "salto"
-        const id = setTimeout(() => {
-            const orbit = orbitRef.current;
-            if (!orbit) return;
-            const DEG = Math.PI / 180;
-            const radius = 1.5 / zoom;
-            const phi = Math.PI / 2 - initialRotationX * DEG;
-            const theta = initialRotationY * DEG;
-            orbit.object.position.setFromSphericalCoords(radius, phi, theta);
-            orbit.update();
-        }, 0);
-        return () => clearTimeout(id);
-    }, [initialRotationX, initialRotationY, zoom]);
-
-    // Sync initialRotationZ → group rotation.z (mismo patrón que Laptop3DViewer).
-    // Permite que el slider "Rotation Z" del popup Custom del
-    // PhotoEditorPlaceholder se refleje en el modelo. NO interfiere
-    // con el drag de OrbitControls (que solo afecta X/Y vía la cámara),
-    // así que es seguro ejecutar este useEffect en cada cambio de prop.
-    useEffect(() => {
-        const root = rootRef.current;
-        if (root) {
-            root.rotation.z = initialRotationZ * (Math.PI / 180);
-        }
-    }, [initialRotationZ]);
-
-    return (
-        <>
-            <PerspectiveCamera
-                ref={cameraRef}
-                makeDefault
-                fov={40}
-                near={0.01}
-                far={100}
-                position={[0, 0, 1.5 / zoom]}
-            />
-
-            <OrbitControls
-                ref={orbitRef}
-                enableZoom={false}
-                enablePan={false}
-                enableDamping
-                dampingFactor={0.08}
-                onEnd={() => {
-                    const orbit = orbitRef.current;
-                    if (!orbit || !onRotationChange) return;
-                    const ry = orbit.getAzimuthalAngle() * (180 / Math.PI);
-                    const rx = (Math.PI / 2 - orbit.getPolarAngle()) * (180 / Math.PI);
-                    onRotationChange(rx, ry);
-                }}
-            />
-
-            <Environment preset="city" background={false} />
-            <ambientLight intensity={0.3} />
-            <directionalLight position={[3, 6, 5]} intensity={0.6} />
-            <directionalLight position={[-4, -2, 3]} intensity={0.25} color="#c8d8ff" />
-            <directionalLight position={[0, -5, 5]} intensity={0.35} />
-
-            <group ref={rootRef} rotation={[0, Math.PI, 0]} scale={0.01} dispose={null}>
-                <group scale={100}>
-                    <mesh castShadow receiveShadow geometry={nodes.Frame_Frame_0.geometry} material={materials.Frame} />
-                    <mesh castShadow receiveShadow geometry={nodes.Frame_Frame2_0.geometry} material={materials.Frame2} />
-                    <mesh castShadow receiveShadow geometry={nodes.Frame_Port_0.geometry} material={materials.Port} />
-                    <mesh castShadow receiveShadow geometry={nodes.Frame_Antenna_0.geometry} material={materials.Antenna} />
-                    <mesh castShadow receiveShadow geometry={nodes.Frame_Mic_0.geometry} material={materials.material} />
-                    <mesh castShadow receiveShadow geometry={nodes.Body_Mic_0.geometry} material={materials.material} />
-                    <mesh castShadow receiveShadow geometry={nodes.Body_Bezel_0.geometry} material={materials.Bezel} />
-                    <mesh castShadow receiveShadow geometry={nodes.Body_Body_0.geometry} material={materials.Body} />
-                    <mesh castShadow receiveShadow geometry={nodes.Body_Wallpaper_0.geometry} material={materials.Wallpaper} />
-                    <mesh castShadow receiveShadow geometry={nodes.Body_Camera_Glass_0.geometry} material={materials.Camera_Glass} />
-                    <mesh castShadow receiveShadow geometry={nodes.Body_Lens_0.geometry} material={materials.Lens} />
-                    <mesh castShadow receiveShadow geometry={nodes.Body_Material_0.geometry} material={materials.Material} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera_Body_0.geometry} material={materials.Body} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera_Glass_0.geometry} material={materials.Glass} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera_Camera_Frame001_0.geometry} material={materials["Camera_Frame.001"]} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera_Mic_0.geometry} material={materials.material} />
-                    <mesh castShadow receiveShadow geometry={nodes.Body001_Screen_Glass_0.geometry} material={materials.Screen_Glass} />
-                    <mesh castShadow receiveShadow geometry={nodes.Button_Frame_0.geometry} material={materials.Frame} />
-                    <mesh castShadow receiveShadow geometry={nodes.Circle003_Frame_0.geometry} material={materials.Frame} />
-                    <mesh castShadow receiveShadow geometry={nodes.Apple_Logo_Logo_0.geometry} material={materials.Logo} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera001_Body_0.geometry} material={materials.Body} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera001_Gray_Glass_0.geometry} material={materials.Gray_Glass} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera001_Flash_0.geometry} material={materials.Flash} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera001_Port_0.geometry} material={materials.Port} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera001_Camera_Frame_0.geometry} material={materials.Camera_Frame} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera001_Camera_Glass_0.geometry} material={materials.Camera_Glass} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera001_Lens_0.geometry} material={materials.Lens} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera001_Black_Glass_0.geometry} material={materials.Black_Glass} />
-                    <mesh castShadow receiveShadow geometry={nodes.Camera003_Material002_0.geometry} material={materials["Material.002"]} />
-                </group>
-            </group>
-        </>
-    );
-}
-
-// ─── CanvasWithLoader ────────────────────────────────────────────────────────
-// Owns its own `loaded` state. Remounting via `key={imageUrl}` is the
-// idiomatic React way to reset state when the image changes — no
-// cascading setState in useEffect.
-function CanvasWithLoader({
-    imageUrl,
-    imageMaskConfig,
-    initialRotationX,
-    initialRotationY,
-    initialRotationZ,
-    onRotationChange,
-    rootRef,
-    cameraRef,
-    zoom,
-    onApi,
-    onMount,
-}: {
-    imageUrl: string | null;
-    imageMaskConfig: ImageMaskConfigLike | null;
-    initialRotationX: number;
-    initialRotationY: number;
-    initialRotationZ: number;
-    onRotationChange?: (rx: number, ry: number) => void;
-    rootRef: React.MutableRefObject<THREE.Group | null>;
-    cameraRef: React.MutableRefObject<THREE.PerspectiveCamera | null>;
-    zoom: number;
-    onApi?: (api: IPhone13ProMax3DApi | null) => void;
-    onMount?: (canvas: HTMLCanvasElement) => void;
-}) {
-    const [loaded, setLoaded] = useState(false);
-
-    return (
-        <>
-            <Canvas
-                style={{ width: "100%", height: "100%", overflow: "visible" }}
-                gl={{
-                    antialias: true,
-                    alpha: true,
-                    preserveDrawingBuffer: true,
-                    powerPreference: "high-performance",
-                    // Permite software rendering si la GPU no soporta WebGL2 —
-                    // evita "Context Lost" en hardware limitado.
-                    failIfMajorPerformanceCaveat: false,
-                }}
-                // dpr=2: balance entre nitidez y consumo de VRAM. dpr=4
-                // saturaba la GPU junto con el GLB pesado del iPhone 13
-                // Pro Max + Environment HDR y causaba "Context Lost".
-                dpr={2}
-                onCreated={({ gl, scene }) => {
-                    gl.outputColorSpace = THREE.SRGBColorSpace;
-                    gl.toneMapping = THREE.NeutralToneMapping;
-                    gl.toneMappingExposure = 1.0;
-                    scene.environmentIntensity = 1.6;
-                    onMount?.(gl.domElement);
-                }}
-            >
-                <ModelScene
-                    imageUrl={imageUrl}
-                    imageMaskConfig={imageMaskConfig}
-                    initialRotationX={initialRotationX}
-                    initialRotationY={initialRotationY}
-                    initialRotationZ={initialRotationZ}
-                    onRotationChange={onRotationChange}
-                    rootRef={rootRef}
-                    cameraRef={cameraRef}
-                    zoom={zoom}
-                    onApi={onApi}
-                    onLoaded={() => setLoaded(true)}
-                />
-            </Canvas>
-
-            {/* Loader — covers the white wallpaper texture while the
-                user's image is being decoded. */}
-            {!loaded && (
-                <div
-                    className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                    style={{ zIndex: 4 }}
-                >
-                    <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
-                </div>
-            )}
-        </>
-    );
-}
-
-// ─── Componente público ──────────────────────────────────────────────────────
 export function IPhone13ProMax3DViewer({
     imageUrl = null,
     imageMaskConfig = null,
+    cropArea = null,
     initialRotationX = -58.23,
     initialRotationY = -29.82,
     initialRotationZ = 0,
@@ -418,21 +85,329 @@ export function IPhone13ProMax3DViewer({
     shadowIntensity = 0,
     shadowColor = "#000000",
 }: Props) {
-    const rootRef = useRef<THREE.Group | null>(null);
+    // Referencias DOM y Three.js
+    const containerRef = useRef<HTMLDivElement>(null);
+    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+    const sceneRef = useRef<THREE.Scene | null>(null);
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+    const controlsRef = useRef<OrbitControls | null>(null);
+    const modelRootRef = useRef<THREE.Group | null>(null);
+    const wallpaperMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
+
+    // Referencias para evitar recargas innecesarias
+    const lastLoadedImageUrlRef = useRef<string | null>(null);
+    const lastLoadedMaskKeyRef = useRef<string | null>(null);
+    const lastLoadedCropKeyRef = useRef<string | null>(null);
+    const onRotationChangeRef = useRef(onRotationChange);
+
+    // Estados de la UI
+    const [loaded, setLoaded] = useState(false);
+    const [contextLost, setContextLost] = useState(false);
     const [grabbing, setGrabbing] = useState(false);
 
-    // ── Curva cuadratica: mismo sistema que Laptop3DViewer ───────────────────
-    // t^2 da arranque suave (0→0.04 al 20%) y maximo dramatico (1→1 al 100%)
+    // Sincronizar referencias inmutables
+    useEffect(() => {
+        onRotationChangeRef.current = onRotationChange;
+    }, [onRotationChange]);
+
+    // ─── Inicialización principal de Three.js ───────────────────────────────────
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        // Escena
+        const scene = new THREE.Scene();
+        sceneRef.current = scene;
+
+        // Renderizador
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            alpha: true,
+            preserveDrawingBuffer: true,
+            powerPreference: "high-performance",
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 3));
+        renderer.setSize(container.clientWidth, container.clientHeight, false);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.NeutralToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        container.appendChild(renderer.domElement);
+        rendererRef.current = renderer;
+        onMount?.(renderer.domElement);
+
+        // Cámara
+        const camera = new THREE.PerspectiveCamera(
+            40,
+            container.clientWidth / container.clientHeight,
+            0.01,
+            100
+        );
+        cameraRef.current = camera;
+
+        // Controles Orbitales (Sustituto puro de @react-three/drei OrbitControls)
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableZoom = false;
+        controls.enablePan = false;
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08; // Misma inercia fluida que R3F
+        controls.addEventListener("end", () => {
+            const ry = controls.getAzimuthalAngle() * (180 / Math.PI);
+            const rx = (Math.PI / 2 - controls.getPolarAngle()) * (180 / Math.PI);
+            onRotationChangeRef.current?.(rx, ry);
+        });
+        controlsRef.current = controls;
+
+        // Posición inicial
+        applyCameraPosition(camera, controls, initialRotationX, initialRotationY, zoom);
+
+        // Iluminación (Replicando `<Environment preset="apartment" />` + luces directas)
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+        scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+        scene.environmentIntensity = 1.3;
+        scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+
+        const dl1 = new THREE.DirectionalLight(0xffffff, 0.9);
+        dl1.position.set(3, 6, 5);
+        scene.add(dl1);
+
+        const dl2 = new THREE.DirectionalLight(0xc8d8ff, 0.5);
+        dl2.position.set(-4, -2, 3);
+        scene.add(dl2);
+
+        const dl3 = new THREE.DirectionalLight(0xffffff, 0.5);
+        dl3.position.set(0, -5, 5);
+        scene.add(dl3);
+
+        // Jerarquía del modelo
+        const rootGroup = new THREE.Group();
+        rootGroup.rotation.z = initialRotationZ * DEG;
+        scene.add(rootGroup);
+        modelRootRef.current = rootGroup;
+
+        // Cargar GLB
+        loadIPhoneGltf()
+            .then((gltfScene) => {
+                const phone = gltfScene.clone(true);
+                // El R3F tenía scale={0.01} -> inner scale={100} y rotation-y={Math.PI}
+                // Eso equivale netamente a rotarlo en Y 180 grados sin alterar escala
+                phone.rotation.y = Math.PI;
+
+                phone.traverse((child) => {
+                    if (!(child instanceof THREE.Mesh)) return;
+
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+
+                    const material = child.material;
+
+                    const mats = Array.isArray(material) ? material : [material];
+
+                    for (const mat of mats) {
+                        if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
+
+                        // Reduce reflejos globales
+                        mat.envMapIntensity = 0.15;
+                    }
+
+                    // Imagen de pantalla
+                    if (child.name.includes("Wallpaper")) {
+                        const mat = child.material as THREE.MeshStandardMaterial;
+                        wallpaperMatRef.current = mat;
+
+                        mat.envMapIntensity = 0;
+                        mat.roughness = 1;
+                        mat.metalness = 0;
+                        mat.needsUpdate = true;
+                    }
+
+                    // Vidrio / capa superior de la pantalla
+                    if (
+                        child.name.includes("Screen_Glass") ||
+                        child.name.includes("Glass") ||
+                        child.name.includes("Display") ||
+                        child.name.includes("FrontGlass")
+                    ) {
+                        const mat = child.material as THREE.MeshStandardMaterial;
+
+                        mat.envMapIntensity = 0;
+                        mat.roughness = 1;
+                        mat.metalness = 0;
+                        mat.opacity = 1;
+                        mat.transparent = false;
+                        mat.needsUpdate = true;
+                    }
+                });
+
+                rootGroup.add(phone);
+
+                // Simular un pequeño retardo para asegurar que los shaders compilaron
+                requestAnimationFrame(() => requestAnimationFrame(() => setLoaded(true)));
+            })
+            .catch(console.error);
+
+        // Loop de renderizado
+        let raf = 0;
+        const tick = () => {
+            raf = requestAnimationFrame(tick);
+            controls.update(); // Necesario para el damping
+            renderer.render(scene, camera);
+        };
+        tick();
+
+        // Eventos DOM (Resize y Context WebGL)
+        const resizeObserver = new ResizeObserver(() => {
+            if (!container || !camera || !renderer) return;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h, false);
+        });
+        resizeObserver.observe(container);
+
+        const handleContextLost = (e: Event) => {
+            e.preventDefault();
+            setContextLost(true);
+            setLoaded(false);
+        };
+        const handleContextRestored = () => setContextLost(false);
+
+        renderer.domElement.addEventListener("webglcontextlost", handleContextLost);
+        renderer.domElement.addEventListener("webglcontextrestored", handleContextRestored);
+
+        // Limpieza al desmontar
+        return () => {
+            cancelAnimationFrame(raf);
+            resizeObserver.disconnect();
+            renderer.domElement.removeEventListener("webglcontextlost", handleContextLost);
+            renderer.domElement.removeEventListener("webglcontextrestored", handleContextRestored);
+            pmremGenerator.dispose();
+
+            scene.traverse((obj) => {
+                if (obj instanceof THREE.Mesh) {
+                    obj.geometry.dispose();
+                    if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+                    else obj.material.dispose();
+                }
+            });
+
+            renderer.dispose();
+            if (container.contains(renderer.domElement)) {
+                container.removeChild(renderer.domElement);
+            }
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // ─── API y Sync de Props Externas ───────────────────────────────────────────
+
+    useEffect(() => {
+        if (!onApi) return;
+        const api: IPhone13ProMax3DApi = {
+            renderAt: (w, h) => {
+                const renderer = rendererRef.current;
+                const camera = cameraRef.current;
+                const scene = sceneRef.current;
+                if (!renderer || !camera || !scene) return;
+
+                const oldAspect = camera.aspect;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h, false);
+                renderer.render(scene, camera);
+
+                // Restaurar estado
+                camera.aspect = oldAspect;
+                camera.updateProjectionMatrix();
+                renderer.setSize(containerRef.current?.clientWidth || PHONE_W, containerRef.current?.clientHeight || PHONE_H, false);
+            },
+        };
+        onApi(api);
+        return () => onApi(null);
+    }, [onApi]);
+
+    useEffect(() => {
+        if (cameraRef.current && controlsRef.current) {
+            applyCameraPosition(cameraRef.current, controlsRef.current, initialRotationX, initialRotationY, zoom);
+        }
+    }, [initialRotationX, initialRotationY, zoom]);
+
+    useEffect(() => {
+        if (modelRootRef.current) {
+            modelRootRef.current.rotation.z = initialRotationZ * DEG;
+        }
+    }, [initialRotationZ]);
+
+    // ─── Actualización de Textura de Pantalla ───────────────────────────────────
+    useEffect(() => {
+        const mat = wallpaperMatRef.current;
+        if (!mat) return;
+
+        const maskKey = imageMaskConfig ? JSON.stringify(imageMaskConfig) : null;
+        const cropKey = cropArea ? JSON.stringify(cropArea) : null;
+
+        if (!imageUrl) {
+            if (mat.map) {
+                mat.map.dispose();
+                mat.map = null;
+                mat.needsUpdate = true;
+            }
+            lastLoadedImageUrlRef.current = null;
+            lastLoadedMaskKeyRef.current = null;
+            return;
+        }
+
+        if (
+            lastLoadedImageUrlRef.current === imageUrl &&
+            lastLoadedMaskKeyRef.current === maskKey &&
+            lastLoadedCropKeyRef.current === cropKey
+        ) {
+            return;
+        }
+
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+            const cropped = applyCropToImage(img, cropArea);
+            const cover = createCoverScreenCanvas(cropped, TEX_W, TEX_H, 0, imageMaskConfig);
+
+            if (mat.map) {
+                mat.map.dispose();
+                mat.map = null;
+            }
+
+            const tex = new THREE.CanvasTexture(cover);
+            tex.flipY = true; // Se mantiene la inversión Y originaria del R3F
+            tex.colorSpace = THREE.SRGBColorSpace;
+            tex.generateMipmaps = true;
+            tex.minFilter = THREE.LinearMipmapLinearFilter;
+            tex.magFilter = THREE.LinearFilter;
+            tex.wrapS = THREE.ClampToEdgeWrapping;
+            tex.wrapT = THREE.ClampToEdgeWrapping;
+
+            mat.map = tex;
+            mat.needsUpdate = true;
+
+            lastLoadedImageUrlRef.current = imageUrl;
+            lastLoadedMaskKeyRef.current = maskKey;
+            lastLoadedCropKeyRef.current = cropKey;
+        };
+        img.src = imageUrl;
+    }, [imageUrl, imageMaskConfig, cropArea, loaded]);
+
+    // ─── Sombras y Renderizado HTML ─────────────────────────────────────────────
+
     const t = Math.max(0, Math.min(1, shadowIntensity));
     const tEased = t * t;
-    const computedBlur = tEased * 60;   // 0–60 px
-    const computedOpacity = tEased * 0.7;  // 0–0.7
+    const computedBlur = tEased * 60;
+    const computedOpacity = tEased * 0.7;
 
     const shadowRgba = shadowColor.startsWith("#")
         ? parseShadowColor(shadowColor, computedOpacity)
         : shadowColor;
-    const hasShadow = t > 0.01;
+
+    const hasShadow = t > 0.01 && loaded;
 
     return (
         <div
@@ -442,12 +417,11 @@ export function IPhone13ProMax3DViewer({
                 transform: `scale(${scale})`,
                 width: 480,
                 height: 1000 + (hasShadow ? computedBlur * 0.8 : 0),
-                marginTop: "200px"
-       
+                marginTop: "20px",
             }}
         >
             <div style={{ position: "relative", width: 480, height: 1000 }}>
-                {/* Sombra de suelo: elipse difusa con curva t^2 */}
+                {/* Sombra de suelo - Aparece sólo tras la carga */}
                 {hasShadow && (
                     <div
                         aria-hidden
@@ -466,44 +440,48 @@ export function IPhone13ProMax3DViewer({
                     />
                 )}
 
-                {/*
-                  Canvas wrapper con inset negativo para que OrbitControls
-                  no clipee el modelo cuando se rota al maximo.
-                  drop-shadow sigue el contorno real del iPhone (igual que Laptop3DViewer).
-                */}
+                {/* Capa de interacción y WebGL */}
                 <div
                     style={{
                         position: "absolute",
-                        inset: "-200px",
+                        inset: "-200px", // Aumenta el área del WebGL y la zona de drag (880x1400 px)
                         zIndex: 2,
                         overflow: "visible",
                         cursor: grabbing ? "grabbing" : "grab",
-                        // drop-shadow en contorno del modelo con curva t^2
                         filter: hasShadow
                             ? `drop-shadow(0px ${(tEased * 22).toFixed(1)}px ${(tEased * 32).toFixed(1)}px ${shadowRgba})`
                             : "none",
-                        transition: "filter 0.15s ease",
+                        transition: loaded ? "filter 0.15s ease" : "none",
                         pointerEvents: "auto",
                     }}
                     onPointerDown={() => setGrabbing(true)}
                     onPointerUp={() => setGrabbing(false)}
                     onPointerLeave={() => setGrabbing(false)}
                 >
-                    <CanvasWithLoader
-                        key={imageUrl ?? "no-image"}
-                        imageUrl={imageUrl}
-                        imageMaskConfig={imageMaskConfig}
-                        initialRotationX={initialRotationX}
-                        initialRotationY={initialRotationY}
-                        initialRotationZ={initialRotationZ}
-                        onRotationChange={onRotationChange}
-                        rootRef={rootRef}
-                        cameraRef={cameraRef}
-                        zoom={zoom}
-                        onApi={onApi}
-                        onMount={onMount}
+                    {/* Contenedor Vanilla Three.js */}
+                    <div
+                        ref={containerRef}
+                        style={{
+                            width: "100%",
+                            height: "100%",
+                            opacity: loaded && !contextLost ? 1 : 0,
+                            transition: "opacity 0.25s ease",
+                        }}
                     />
                 </div>
+
+                {/* Pantallas de Carga y Context Lost */}
+                {contextLost && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20" style={{ zIndex: 4 }}>
+                        <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                    </div>
+                )}
+
+                {!loaded && !contextLost && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 4 }}>
+                        <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                    </div>
+                )}
             </div>
         </div>
     );

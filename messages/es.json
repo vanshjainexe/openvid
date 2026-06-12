@@ -975,7 +975,6 @@
       "daysAgo": "{days, plural, =1 {Hace 1 día} other {Hace # días}}"
     },
     "actions": {
-      "addToCanvas": "Añadir al canvas",
       "delete": "Eliminar del historial"
     }
   },
