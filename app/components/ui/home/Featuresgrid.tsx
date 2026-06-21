@@ -23,16 +23,19 @@ export default function FeaturesGrid() {
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[300px]">
           <article className="relative group col-span-1 md:col-span-2 lg:col-span-2 lg:row-span-2 squircle-element-2xl bg-neutral-950 border border-white/10 overflow-hidden hover:border-white/20 transition-colors">
             <div className="absolute inset-0 bg-[url('/images/bento/bg-phone.avif')] bg-cover bg-bottom transition-[transform,opacity] duration-500 group-hover:opacity-50" />
-            <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/60 sm:via-neutral-950/20 to-transparent pointer-events-none z-10" />
-            <div className="absolute top-0 inset-x-0 flex justify-center z-20 pointer-events-none">
+
+            <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/20 to-transparent pointer-events-none z-10" />
+
+            <div className="absolute -top-22 sm:top-0 inset-x-0 flex justify-center z-20 pointer-events-none">
               <img
                 src="/images/bento/3d-device.webp"
                 alt={t("alts.abstract3dRendering")}
                 loading="lazy"
                 decoding="async"
-                className="w-auto h-auto max-h-[550px] object-contain transition-transform duration-500 group-hover:scale-105 select-none"
+                className="w-auto h-auto max-h-[300px] sm:max-h-[550px] object-contain object-bottom transition-transform duration-500 group-hover:scale-105 select-none"
               />
             </div>
+
             <div className="absolute bottom-0 left-0 p-8 z-30">
               <h3 className="text-xl font-medium text-white mb-2">
                 {t("cards.deviceMockups.title")}
@@ -49,7 +52,7 @@ export default function FeaturesGrid() {
                 {t("cards.transparency.title")}
               </h2>
             </div>
-            <div className="relative w-full mt-24 h-[300px] flex justify-center items-start">
+            <div className="relative w-full mt-40 sm:mt-24 h-[300px] flex justify-center items-start">
               <img
                 src="/images/bento/transparency-3.webp"
                 alt={t("alts.backgroundLayer3")}
@@ -84,7 +87,7 @@ export default function FeaturesGrid() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none z-20 transition-all duration-500 ease-in-out group-hover:opacity-0" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-neutral-800/20 via-neutral-950/0 to-transparent pointer-events-none" />
-            <h2 className="text-6xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-neutral-100 relative z-30 text-shadow-2xs">
+            <h2 className="text-4xl sm:text-6xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-neutral-100 relative z-30 text-shadow-2xs">
               500+
             </h2>
             <div className="relative z-30 mt-4">
@@ -115,21 +118,24 @@ export default function FeaturesGrid() {
 
           <article className="relative group col-span-1 md:col-span-2 lg:col-span-2 squircle-element-2xl bg-neutral-950 border border-white/10 overflow-hidden hover:border-white/20 transition-colors p-8 flex flex-col justify-between">
             <div className="absolute inset-0 bg-[url('/images/bento/bg-elements.avif')] bg-cover bg-bottom opacity-100 transition-all duration-500 ease-in-out group-hover:scale-105 group-hover:opacity-50" />
-            <div className="absolute bottom-0 right-0 z-10 max-w-[50%] pointer-events-none">
+
+            <div className="absolute bottom-0 right-0 z-10 max-w-[75%] sm:max-w-[50%] pointer-events-none">
               <img
                 src="/images/bento/phone-elements.webp"
                 alt={t("alts.rightAsset")}
                 loading="lazy"
                 decoding="async"
-                className="w-auto h-auto max-h-[580px] object-contain transition-all duration-500 ease-in-out group-hover:scale-105 group-hover:rotate-3 drop-shadow-[0_20px_20px_rgba(0,0,0,0.65)] select-none"
+                className="w-auto h-auto max-h-[280px] sm:max-h-[580px] object-contain object-bottom transition-all duration-500 ease-in-out group-hover:scale-105 group-hover:rotate-3 drop-shadow-[0_20px_20px_rgba(0,0,0,0.65)] select-none"
               />
             </div>
+
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent pointer-events-none z-20 transition-all duration-500 ease-in-out group-hover:opacity-0" />
+
             <div className="relative z-30 mt-auto">
-              <h3 className="text-lg font-medium text-white mb-3">
+              <h3 className="text-lg font-medium text-white mb-0 sm:mb-3">
                 {t("cards.elementsLayers.title")}
               </h3>
-              <div className="flex gap-3 flex-wrap">
+              <div className="hidden sm:flex gap-3 flex-wrap">
                 {["textOverlay", "svgShapes", "blurEffects"].map((tag) => (
                   <span
                     key={tag}
@@ -141,6 +147,7 @@ export default function FeaturesGrid() {
               </div>
             </div>
           </article>
+
 
           <article className="relative group col-span-1 md:col-span-1 lg:col-span-2 squircle-element-2xl bg-neutral-950 border border-white/10 overflow-hidden hover:border-white/20 transition-colors p-8 flex flex-col justify-end">
             <div className="absolute inset-0 bg-[url('/images/bento/multi-track.avif')] bg-cover bg-bottom transition-all duration-500 ease-in-out group-hover:scale-105 group-hover:opacity-50" />

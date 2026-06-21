@@ -7,9 +7,18 @@ export default function VideoHero() {
 
   return (
     <section className="relative w-full overflow-visible flex justify-center animate-fade-in-up">
-      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-screen max-w-480 h-full -z-10">
-        <div className="absolute inset-0 -top-28 bottom-64 mix-blend-hard-light blur-[80px]" style={{ background: 'linear-gradient(rgba(0, 0, 0, 0) 0%, rgba(0, 138, 255, 0.1) 30%, rgb(255, 255, 255) 20%, rgb(247, 164, 66) 70%, rgb(233, 66, 247) 100%)' }} />
-        <div className="absolute inset-0 -top-28 bottom-64 mix-blend-soft-light blur-[80px]" style={{ background: 'linear-gradient(rgba(0, 0, 0, 0) 0%, rgba(0, 138, 255, 0.2) 35%, rgb(255, 255, 255) 70%, rgb(247, 164, 66) 80%, rgb(233, 66, 247) 100%)' }} />
+      
+      <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-screen min-w-[140vw] md:min-w-0 max-w-480 h-full -z-10 overflow-visible flex justify-center">
+        
+        <div 
+          className="absolute inset-0 -top-28 bottom-64 w-full h-full mix-blend-hard-light blur-[120px] md:blur-[80px] transform-gpu" 
+          style={{ background: 'linear-gradient(rgba(0, 0, 0, 0) 0%, rgba(0, 138, 255, 0.1) 30%, rgb(255, 255, 255) 20%, rgb(247, 164, 66) 70%, rgb(233, 66, 247) 100%)' }} 
+        />
+        
+        <div 
+          className="absolute inset-0 -top-28 bottom-64 w-full h-full mix-blend-soft-light blur-[120px] md:blur-[80px] transform-gpu" 
+          style={{ background: 'linear-gradient(rgba(0, 0, 0, 0) 0%, rgba(0, 138, 255, 0.2) 35%, rgb(255, 255, 255) 70%, rgb(247, 164, 66) 80%, rgb(233, 66, 247) 100%)' }} 
+        />
       </div>
 
       <div className="relative px-4 w-full">

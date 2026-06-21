@@ -109,7 +109,7 @@ const DraggableCarousel = ({ children }: { children: React.ReactNode }) => {
         onMouseLeave={handleMouseUpOrLeave}
         onMouseUp={handleMouseUpOrLeave}
         onMouseMove={handleMouseMove}
-        className="flex gap-6 overflow-x-auto hide-scroll w-full cursor-grab select-none"
+        className="flex gap-6 overflow-x-auto hide-scroll w-full cursor-grab select-none -ml-6 sm:ml-0"
       >
         <div
           className="flex-shrink-0 pointer-events-none"
@@ -154,7 +154,7 @@ export default function FeaturesShowcase() {
         </div>
         <DraggableCarousel>
           {videosData.map((feature) => (
-            <article key={feature.id} className="flex-shrink-0 h-[350px] md:h-[450px]">
+            <article key={feature.id} className="flex-shrink-0 h-[200px] sm:h-[350px] md:h-[450px]">
               <div
                 className="relative h-full squircle-element-xl overflow-hidden border border-white/10 group shadow-2xl"
                 style={{ aspectRatio: feature.aspectRatio || "16/9" }}
@@ -180,7 +180,7 @@ export default function FeaturesShowcase() {
         </div>
         <DraggableCarousel>
           {imagesData.map((feature) => (
-            <article key={feature.id} className="flex-shrink-0 h-[350px] md:h-[450px]">
+            <article key={feature.id} className="flex-shrink-0 h-[200px] sm:h-[350px] md:h-[450px]">
               <div
                 className="relative h-full squircle-element-xl overflow-hidden bg-neutral-900 border border-white/10 group shadow-2xl"
                 style={{ aspectRatio: feature.aspectRatio || "16/9" }}

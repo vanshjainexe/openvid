@@ -4,7 +4,7 @@ import { useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { saveUploadedVideo } from "@/lib/video-upload-cache";
 import { saveUploadedImage } from "@/lib/image-upload-cache";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import GitHubBadge from "@/components/ui/GitHubStars";
 
@@ -16,7 +16,6 @@ interface HeroProps {
 export default function Hero({ onVideoUpload, onPhotoUpload }: HeroProps) {
     const t = useTranslations("hero");
     const router = useRouter();
-    const locale = useLocale();
 
     const videoInputRef = useRef<HTMLInputElement>(null);
     const [isDraggingVideo, setIsDraggingVideo] = useState(false);
