@@ -589,8 +589,6 @@ export function Phone3DViewer(props: Props) {
                     transformOrigin: "top center",
                     width: PHONE_W,
                     height: PHONE_H + (hasShadow ? computedBlur * 0.8 : 0),
-                    marginTop: "220px",
-                    marginLeft: "140px",
                 }}
             >
                 <div style={{ position: "relative", width: PHONE_W, height: PHONE_H }}>

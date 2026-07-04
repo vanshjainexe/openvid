@@ -50,6 +50,7 @@ export interface EditorState {
     imagePhoneOpening: number;
     imagePhoneShadow: number;
     imagePhoneShadowColor: string;
+    phoneCalibrationWidth: number;
 }
 
 export function createInitialEditorState(overrides?: Partial<EditorState>): EditorState {
@@ -106,7 +107,7 @@ export function createInitialEditorState(overrides?: Partial<EditorState>): Edit
         imagePhoneActive: false,
         imagePhoneX: 0,
         imagePhoneY: 0,
-        imagePhoneScale: 1,
+        imagePhoneScale: 0.6,
         imagePhoneRotX: 0,
         imagePhoneRotY: 0,
         imagePhoneRotZ: 0,
@@ -116,6 +117,7 @@ export function createInitialEditorState(overrides?: Partial<EditorState>): Edit
         imagePhoneOpening: 1,
         imagePhoneShadow: 0.6,
         imagePhoneShadowColor: '#000000',
+        phoneCalibrationWidth: 0,
         ...overrides,
     };
 }

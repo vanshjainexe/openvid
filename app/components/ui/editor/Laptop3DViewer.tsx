@@ -547,7 +547,6 @@ export function Laptop3DViewer(props: Props) {
           transformOrigin: "top center",
           width: LAPTOP_W,
           height: LAPTOP_H + (hasShadow ? computedBlur * 0.8 : 0),
-          marginTop: "250px",
         }}
       >
         <div

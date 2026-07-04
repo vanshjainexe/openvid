@@ -41,7 +41,32 @@ export function MockupMenu({
 }: MockupMenuProps) {
   const t = useTranslations("mockupMenu");
 
-  const [page, setPage] = useState<MenuPage>(initialPage);
+  const {
+    imagePhoneActive,
+    setImagePhoneActive,
+    imagePhoneX,
+    setImagePhoneX,
+    imagePhoneY,
+    setImagePhoneY,
+    imagePhoneScale,
+    setImagePhoneScale,
+    imagePhoneRotX,
+    imagePhoneRotY,
+    setImagePhoneRotX,
+    setImagePhoneRotY,
+    imagePhoneDevice,
+    setImagePhoneDevice,
+    imagePhoneOpening,
+    setImagePhoneOpening,
+    imagePhoneShadow,
+    setImagePhoneShadow,
+    setImagePhoneShadowColor,
+    setPhoneCalibrationWidth,
+  } = useMockup3dContext();
+
+  const [page, setPage] = useState<MenuPage>(
+    initialPage !== "home" ? initialPage : (imagePhoneActive ? "detail-3d" : "home")
+  );
 
   useEffect(() => {
     if (initialPage !== "home") {
@@ -125,27 +150,7 @@ export function MockupMenu({
 
     return () => cancelAnimationFrame(id);
   }, [page, restoreDevicesScroll, updateDevicesScrollState]);
-  const {
-    imagePhoneActive,
-    setImagePhoneActive,
-    imagePhoneX,
-    setImagePhoneX,
-    imagePhoneY,
-    setImagePhoneY,
-    imagePhoneScale,
-    setImagePhoneScale,
-    imagePhoneRotX,
-    imagePhoneRotY,
-    setImagePhoneRotX,
-    setImagePhoneRotY,
-    imagePhoneDevice,
-    setImagePhoneDevice,
-    imagePhoneOpening,
-    setImagePhoneOpening,
-    imagePhoneShadow,
-    setImagePhoneShadow,
-    setImagePhoneShadowColor,
-  } = useMockup3dContext();
+
 
   const filteredMockups =
     selectedCategory === "all"
@@ -208,9 +213,10 @@ export function MockupMenu({
 
     setImagePhoneDevice(id);
     if (!isSameDevice || isUnposed) {
+      setPhoneCalibrationWidth(0);
       setImagePhoneX(0);
       setImagePhoneY(0);
-      setImagePhoneScale(0.8);
+      setImagePhoneScale(0.6);
       if (id === "iphone-13-pro-max") {
         setImagePhoneRotX(-58.23);
         setImagePhoneRotY(-29.82);
@@ -218,7 +224,7 @@ export function MockupMenu({
         setImagePhoneRotX(43.23);
         setImagePhoneRotY(-37.82);
         setImagePhoneOpening(1);
-        setImagePhoneScale(1);
+        setImagePhoneScale(0.8);
       } else {
         setImagePhoneRotX(-58.23);
         setImagePhoneRotY(-29.82);
@@ -270,6 +276,7 @@ export function MockupMenu({
         backgroundColorCss={backgroundColorCss}
         onBack={() => setPage("home")}
         onRemove={handleRemoveAll}
+        setPhoneCalibrationWidth={setPhoneCalibrationWidth}
       />
     );
   }

@@ -266,6 +266,7 @@ export interface Mockup3dMenuProps {
 
   onBack: () => void;
   onRemove: () => void;
+  setPhoneCalibrationWidth: (w: number) => void;
 }
 
 export function Mockup3dMenu({
@@ -292,6 +293,7 @@ export function Mockup3dMenu({
 
   onBack,
   onRemove,
+  setPhoneCalibrationWidth,
 }: Mockup3dMenuProps) {
   const t = useTranslations("mockupMenu");
 
@@ -299,6 +301,7 @@ export function Mockup3dMenu({
     setImagePhoneX(0);
     setImagePhoneY(0);
     setImagePhoneScale(0.8);
+    setPhoneCalibrationWidth(0);
     const defaultRotX = imagePhoneDevice === "laptop" ? 43.23 : -58.23;
     const defaultRotY = imagePhoneDevice === "laptop" ? -37.82 : -29.82;
     setImagePhoneRotX(defaultRotX);

@@ -48,6 +48,8 @@ interface Mockup3dState {
   /** Drop-shadow color (CSS color string) */
   imagePhoneShadowColor: string;
   setImagePhoneShadowColor: (v: string) => void;
+  phoneCalibrationWidth: number;
+  setPhoneCalibrationWidth: (w: number) => void;
 }
 
 const Mockup3dContext = createContext<Mockup3dState | null>(null);
@@ -60,7 +62,7 @@ export function Mockup3dProvider({ children }: { children: ReactNode }) {
   const [imagePhoneActive, setImagePhoneActive] = useState(false);
   const [imagePhoneX, setImagePhoneX] = useState(0);
   const [imagePhoneY, setImagePhoneY] = useState(0);
-  const [imagePhoneScale, setImagePhoneScale] = useState(1);
+  const [imagePhoneScale, setImagePhoneScale] = useState(0.6);
   const [imagePhoneRotX, setImagePhoneRotX] = useState(0);
   const [imagePhoneRotY, setImagePhoneRotY] = useState(0);
   const [imagePhoneRotZ, setImagePhoneRotZ] = useState(0);
@@ -70,6 +72,7 @@ export function Mockup3dProvider({ children }: { children: ReactNode }) {
   const [imagePhoneOpening, setImagePhoneOpening] = useState(1);
   const [imagePhoneShadow, setImagePhoneShadow] = useState(0.6);
   const [imagePhoneShadowColor, setImagePhoneShadowColor] = useState("#000000");
+  const [phoneCalibrationWidth, setPhoneCalibrationWidth] = useState(0);
 
   return (
     <Mockup3dContext.Provider value={{
@@ -89,6 +92,7 @@ export function Mockup3dProvider({ children }: { children: ReactNode }) {
       imagePhoneOpening, setImagePhoneOpening,
       imagePhoneShadow, setImagePhoneShadow,
       imagePhoneShadowColor, setImagePhoneShadowColor,
+      phoneCalibrationWidth, setPhoneCalibrationWidth,
     }}>
       {children}
     </Mockup3dContext.Provider>

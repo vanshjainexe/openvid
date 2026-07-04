@@ -54,6 +54,7 @@ interface ImageProjectState {
     imagePhoneOpening: number;
     imagePhoneShadow: number;
     imagePhoneShadowColor: string;
+    phoneCalibrationWidth: number;
 }
 
 const DEFAULT_PROJECT_STATE: ImageProjectState = {
@@ -83,7 +84,7 @@ const DEFAULT_PROJECT_STATE: ImageProjectState = {
     imagePhoneActive: false,
     imagePhoneX: 0,
     imagePhoneY: 0,
-    imagePhoneScale: 1,
+    imagePhoneScale: 0.6,
     imagePhoneRotX: 0,
     imagePhoneRotY: 0,
     imagePhoneRotZ: 0,
@@ -92,6 +93,7 @@ const DEFAULT_PROJECT_STATE: ImageProjectState = {
     imagePhoneOpening: 1,
     imagePhoneShadow: 0.6,
     imagePhoneShadowColor: "#000000",
+    phoneCalibrationWidth: 0,
 };
 
 export function useImageProjects() {

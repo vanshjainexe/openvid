@@ -573,8 +573,6 @@ export function IPhone13ProMax3DViewer({
                     transformOrigin: "top center",
                     width: 480,
                     height: 1000 + (hasShadow ? computedBlur * 0.8 : 0),
-                    marginTop: "200px",
-                    marginLeft: "170px"
                 }}
             >
                 <div style={{ position: "relative", width: 480, height: 1000 }}>

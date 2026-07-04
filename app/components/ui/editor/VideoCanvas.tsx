@@ -110,7 +110,8 @@ const VideoCanvasInner = forwardRef<VideoCanvasHandle, VideoCanvasProps>(functio
         imagePhoneRotZ,
         imagePhoneDevice, imagePhonePresetId,
         imagePhoneOpening,
-        imagePhoneShadow, imagePhoneShadowColor
+        imagePhoneShadow, imagePhoneShadowColor,
+        phoneCalibrationWidth, setPhoneCalibrationWidth
     } = useMockup3dContext();
     // 3D phone overlay is active in both video and image mode
     // Añadir FUERA del JSX de VideoCanvas, junto a los otros useCallback:
@@ -355,21 +356,25 @@ const VideoCanvasInner = forwardRef<VideoCanvasHandle, VideoCanvasProps>(functio
     }, [aspectRatio, customAspectRatio]);
 
 
-    const phoneCalibrationWidthRef = useRef<number>(canvasDimensions?.width ?? 0);
+    // update calibraiton width when user styles the mockup
     useEffect(() => {
-        if (canvasDimensions?.width) {
-            phoneCalibrationWidthRef.current = canvasDimensions.width;
+        if (canvasDimensions?.width && canvasDimensions.width > 200) {
+            setPhoneCalibrationWidth(canvasDimensions.width);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [imagePhoneX, imagePhoneY, imagePhoneScale]);
+    }, [imagePhoneX, imagePhoneY, imagePhoneScale, setPhoneCalibrationWidth]);
 
-    const phoneCanvasScaleFactor = (canvasDimensions?.width && phoneCalibrationWidthRef.current)
-        ? canvasDimensions.width / phoneCalibrationWidthRef.current
+    useEffect(() => {
+        if (canvasDimensions?.width && canvasDimensions.width > 200) {
+            if (phoneCalibrationWidth === 0) {
+                setPhoneCalibrationWidth(canvasDimensions.width);
+            }
+        }
+    }, [canvasDimensions?.width, phoneCalibrationWidth, setPhoneCalibrationWidth]);
+
+    const phoneCanvasScaleFactor = (canvasDimensions?.width && phoneCalibrationWidth)
+        ? canvasDimensions.width / phoneCalibrationWidth
         : 1;
-
-    // Usar SIEMPRE estos valores para posicionar/dimensionar el mockup 3D —
-    // nunca imagePhoneX/Y/Scale crudos, excepto dentro del cálculo que llama
-    // a setImagePhoneScale() (ese debe leer el valor real almacenado).
     const effectiveImagePhoneX = imagePhoneX * phoneCanvasScaleFactor;
     const effectiveImagePhoneY = imagePhoneY * phoneCanvasScaleFactor;
     const effectiveImagePhoneScale = imagePhoneScale * phoneCanvasScaleFactor;
@@ -2158,7 +2163,7 @@ const VideoCanvasInner = forwardRef<VideoCanvasHandle, VideoCanvasProps>(functio
                                         style={{ zIndex: 155, overflow: "visible" }}
                                     >
                                         <div
-                                            className="absolute animate-in fade-in zoom-in-95 duration-300"
+                                            className="absolute"
                                             style={{
                                                 left: "50%",
                                                 top: "50%",
@@ -2184,7 +2189,7 @@ const VideoCanvasInner = forwardRef<VideoCanvasHandle, VideoCanvasProps>(functio
 
                                         {/* Mockup layer: SÍ se escala */}
                                         <div
-                                            className="absolute animate-in fade-in zoom-in-95 duration-300"
+                                            className="absolute"
                                             data-image-phone-overlay
                                             onMouseEnter={() => setIsVideoHovered(true)}
                                             onMouseLeave={() => setIsVideoHovered(false)}

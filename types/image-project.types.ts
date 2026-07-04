@@ -54,6 +54,7 @@ export interface ImageProject {
     imagePhoneOpening: number;
     imagePhoneShadow: number;
     imagePhoneShadowColor: string;
+    phoneCalibrationWidth: number;
 
     createdAt: number;
 }

@@ -75,6 +75,7 @@ export default function Editor() {
         imagePhoneOpening, setImagePhoneOpening,
         imagePhoneShadow, setImagePhoneShadow,
         imagePhoneShadowColor, setImagePhoneShadowColor,
+        phoneCalibrationWidth, setPhoneCalibrationWidth,
     } = useMockup3dContext();
 
     // Undo/Redo system - centralized state management
@@ -319,6 +320,7 @@ export default function Editor() {
                     imagePhoneOpening,
                     imagePhoneShadow,
                     imagePhoneShadowColor,
+                    phoneCalibrationWidth,
                 });
             } catch (error) {
                 console.error("Auto-save failed:", error);
@@ -359,6 +361,7 @@ export default function Editor() {
         imagePhoneOpening,
         imagePhoneShadow,
         imagePhoneShadowColor,
+        phoneCalibrationWidth,
     ]);
 
     useEffect(() => {
@@ -396,6 +399,7 @@ export default function Editor() {
         imagePhoneOpening,
         imagePhoneShadow,
         imagePhoneShadowColor,
+        phoneCalibrationWidth,
         currentProject,
         isPhotoMode,
         autoSaveCurrentProject,
@@ -457,11 +461,12 @@ export default function Editor() {
         if (currentProject.imagePhoneOpening !== undefined) setImagePhoneOpening(currentProject.imagePhoneOpening);
         if (currentProject.imagePhoneShadow !== undefined) setImagePhoneShadow(currentProject.imagePhoneShadow);
         if (currentProject.imagePhoneShadowColor !== undefined) setImagePhoneShadowColor(currentProject.imagePhoneShadowColor);
+        if (currentProject.phoneCalibrationWidth !== undefined) setPhoneCalibrationWidth(currentProject.phoneCalibrationWidth);
 
         setTimeout(() => {
             isRestoringProjectRef.current = false;
         }, 500); //
-    }, [currentProject, isPhotoMode, setImagePhoneActive, setImagePhoneX, setImagePhoneY, setImagePhoneScale, setImagePhoneRotX, setImagePhoneRotY, setImagePhoneRotZ, setImagePhonePerspective, setImagePhoneDevice, setImagePhoneOpening, setImagePhoneShadow, setImagePhoneShadowColor]);
+    }, [currentProject, isPhotoMode, setImagePhoneActive, setImagePhoneX, setImagePhoneY, setImagePhoneScale, setImagePhoneRotX, setImagePhoneRotY, setImagePhoneRotZ, setImagePhonePerspective, setImagePhoneDevice, setImagePhoneOpening, setImagePhoneShadow, setImagePhoneShadowColor, setPhoneCalibrationWidth]);
 
     // Image project handlers
     const handleSelectImageProject = useCallback(async (projectId: string) => {
@@ -564,6 +569,7 @@ export default function Editor() {
                     imagePhoneOpening,
                     imagePhoneShadow,
                     imagePhoneShadowColor,
+                    phoneCalibrationWidth,
                 }
             );
 
@@ -679,6 +685,7 @@ export default function Editor() {
                     imagePhoneOpening,
                     imagePhoneShadow,
                     imagePhoneShadowColor,
+                    phoneCalibrationWidth,
                 }
             );
 
@@ -1064,6 +1071,7 @@ export default function Editor() {
                 imagePhoneOpening,
                 imagePhoneShadow,
                 imagePhoneShadowColor,
+                phoneCalibrationWidth,
             });
         }, 300);
         return () => {
@@ -1081,6 +1089,7 @@ export default function Editor() {
         imagePhoneActive, imagePhoneX, imagePhoneY, imagePhoneScale, imagePhoneRotX,
         imagePhoneRotY, imagePhoneRotZ, imagePhonePerspective, imagePhoneDevice,
         imagePhonePresetId, imagePhoneOpening, imagePhoneShadow, imagePhoneShadowColor,
+        phoneCalibrationWidth,
         setEditorState
     ]);
 
@@ -1133,6 +1142,7 @@ export default function Editor() {
         setImagePhoneOpening(editorState.imagePhoneOpening);
         setImagePhoneShadow(editorState.imagePhoneShadow);
         setImagePhoneShadowColor(editorState.imagePhoneShadowColor);
+        setPhoneCalibrationWidth(editorState.phoneCalibrationWidth);
     }, [undoRedoVersion]);
 
     // Handler para cambiar el mockup
